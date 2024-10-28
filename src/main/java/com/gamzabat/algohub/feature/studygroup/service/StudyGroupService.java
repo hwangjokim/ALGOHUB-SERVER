@@ -424,4 +424,15 @@ public class StudyGroupService {
 		member.updateRole(RoleOfGroupMember.fromValue(request.role()));
 		log.info("success to update group member role");
 	}
+
+	@Transactional(readOnly = true)
+	public String getRoleInGroup(User user, Long groupId) {
+		StudyGroup group = groupRepository.findById(groupId)
+			.orElseThrow(() -> new CannotFoundGroupException("존재하지 않는 그룹입니다."));
+
+		GroupMember member = groupMemberRepository.findByUserAndStudyGroup(user, group)
+			.orElseThrow(() -> new GroupMemberValidationException(HttpStatus.NOT_FOUND.value(), "참여하지 않은 그룹입니다."));
+
+		return member.getRole().getValue();
+	}
 }

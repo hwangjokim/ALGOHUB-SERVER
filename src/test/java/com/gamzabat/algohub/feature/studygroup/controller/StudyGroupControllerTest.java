@@ -765,4 +765,48 @@ class StudyGroupControllerTest {
 			.andExpect(jsonPath("$.error").value("해당 스터디 그룹에 참여하지 않은 회원입니다."));
 		verify(studyGroupService, times(1)).updateGroupMemberRole(user, request);
 	}
+
+	@Test
+	@DisplayName("그룹 내 회원 Role 조회 성공")
+	void getRoleInGroup() throws Exception {
+		// given
+		when(studyGroupService.getRoleInGroup(user, groupId)).thenReturn(RoleOfGroupMember.OWNER.getValue());
+		// when, then
+		mockMvc.perform(get("/api/group/role")
+				.header("Authorization", token)
+				.param("groupId", String.valueOf(groupId)))
+			.andExpect(status().isOk())
+			.andExpect(content().string(RoleOfGroupMember.OWNER.getValue()));
+		verify(studyGroupService, times(1)).getRoleInGroup(user, groupId);
+	}
+
+	@Test
+	@DisplayName("스터디 그룹 멤버 역할 수정 실패 : 스터디 그룹에 참여하지 않은 회원")
+	void getRoleInGroupFailed_1() throws Exception {
+		// given
+		when(studyGroupService.getRoleInGroup(user, groupId)).thenThrow(
+			new CannotFoundGroupException("존재하지 않는 그룹입니다."));
+		// when, then
+		mockMvc.perform(get("/api/group/role")
+				.header("Authorization", token)
+				.param("groupId", String.valueOf(groupId)))
+			.andExpect(status().isNotFound())
+			.andExpect(jsonPath("$.error").value("존재하지 않는 그룹입니다."));
+		verify(studyGroupService, times(1)).getRoleInGroup(user, groupId);
+	}
+
+	@Test
+	@DisplayName("스터디 그룹 멤버 역할 수정 실패 : 참여하지 않은 그룹")
+	void getRoleInGroupFailed_2() throws Exception {
+		// given
+		when(studyGroupService.getRoleInGroup(user, groupId)).thenThrow(
+			new GroupMemberValidationException(HttpStatus.NOT_FOUND.value(), "참여하지 않은 그룹입니다."));
+		// when, then
+		mockMvc.perform(get("/api/group/role")
+				.header("Authorization", token)
+				.param("groupId", String.valueOf(groupId)))
+			.andExpect(status().isNotFound())
+			.andExpect(jsonPath("$.error").value("참여하지 않은 그룹입니다."));
+		verify(studyGroupService, times(1)).getRoleInGroup(user, groupId);
+	}
 }
