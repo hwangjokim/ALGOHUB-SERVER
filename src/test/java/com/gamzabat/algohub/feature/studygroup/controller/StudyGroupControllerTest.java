@@ -1,35 +1,7 @@
 package com.gamzabat.algohub.feature.studygroup.controller;
 
-import static org.hamcrest.Matchers.*;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.anyLong;
-import static org.mockito.Mockito.anyString;
-import static org.mockito.Mockito.*;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
-
-import java.time.LocalDate;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
-
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.CsvSource;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
-import org.springframework.context.annotation.Import;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.MediaType;
-import org.springframework.mock.web.MockMultipartFile;
-import org.springframework.security.test.context.support.WithMockUser;
-import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.web.multipart.MultipartFile;
-
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.gamzabat.algohub.common.DateFormatUtil;
 import com.gamzabat.algohub.common.jwt.TokenProvider;
 import com.gamzabat.algohub.config.SpringSecurityConfig;
 import com.gamzabat.algohub.exception.StudyGroupValidationException;
@@ -54,6 +26,33 @@ import com.gamzabat.algohub.feature.studygroup.repository.StudyGroupRepository;
 import com.gamzabat.algohub.feature.studygroup.service.StudyGroupService;
 import com.gamzabat.algohub.feature.user.domain.User;
 import com.gamzabat.algohub.feature.user.repository.UserRepository;
+
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.context.annotation.Import;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.mock.web.MockMultipartFile;
+import org.springframework.security.test.context.support.WithMockUser;
+import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.web.multipart.MultipartFile;
+
+import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
+
+import static org.hamcrest.Matchers.hasItems;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.*;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @WebMvcTest(StudyGroupController.class)
 @WithMockUser
@@ -211,7 +210,7 @@ class StudyGroupControllerTest {
 		for (int i = 0; i < 10; i++) {
 			bookmarked.add(new GetStudyGroupResponse(
 				(long)i, "name" + i, "groupImage" + 1,
-				LocalDate.now(), LocalDate.now().plusDays(i),
+				DateFormatUtil.formatDate(LocalDate.now()), DateFormatUtil.formatDate(LocalDate.now().plusDays(i)),
 				"introduction" + 1, "nickname", true, true
 			));
 		}
@@ -219,21 +218,21 @@ class StudyGroupControllerTest {
 		for (int i = 0; i < 10; i++) {
 			done.add(new GetStudyGroupResponse(
 				(long)i, "name" + i, "groupImage" + 1,
-				LocalDate.now(), LocalDate.now().plusDays(i),
+				DateFormatUtil.formatDate(LocalDate.now()), DateFormatUtil.formatDate(LocalDate.now().plusDays(i)),
 				"introduction" + 1, "nickname", true, true
 			));
 		}
 		for (int i = 0; i < 10; i++) {
 			inProgress.add(new GetStudyGroupResponse(
 				(long)i, "name" + i, "groupImage" + 1,
-				LocalDate.now(), LocalDate.now().plusDays(i),
+				DateFormatUtil.formatDate(LocalDate.now()), DateFormatUtil.formatDate(LocalDate.now().plusDays(i)),
 				"introduction" + 1, "nickname", true, true
 			));
 		}
 		for (int i = 0; i < 10; i++) {
 			queued.add(new GetStudyGroupResponse(
 				(long)i, "name" + i, "groupImage" + 1,
-				LocalDate.now(), LocalDate.now().plusDays(i),
+				DateFormatUtil.formatDate(LocalDate.now()), DateFormatUtil.formatDate(LocalDate.now().plusDays(i)),
 				"introduction" + 1, "nickname", true, true
 			));
 		}
