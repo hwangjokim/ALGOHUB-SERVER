@@ -12,11 +12,11 @@ import com.gamzabat.algohub.feature.solution.exception.CannotFoundSolutionExcept
 import com.gamzabat.algohub.feature.solution.repository.SolutionRepository;
 import com.gamzabat.algohub.feature.studygroup.dto.CheckSolvedProblemResponse;
 import com.gamzabat.algohub.feature.studygroup.dto.CreateGroupRequest;
-import com.gamzabat.algohub.feature.studygroup.dto.CreateGroupResponse;
 import com.gamzabat.algohub.feature.studygroup.dto.EditGroupRequest;
 import com.gamzabat.algohub.feature.studygroup.dto.GetGroupMemberResponse;
 import com.gamzabat.algohub.feature.studygroup.dto.GetStudyGroupListsResponse;
 import com.gamzabat.algohub.feature.studygroup.dto.GetStudyGroupResponse;
+import com.gamzabat.algohub.feature.studygroup.dto.GroupCodeResponse;
 import com.gamzabat.algohub.feature.studygroup.dto.UpdateGroupMemberRoleRequest;
 import com.gamzabat.algohub.feature.studygroup.etc.RoleOfGroupMember;
 import com.gamzabat.algohub.feature.studygroup.exception.CannotFoundGroupException;
@@ -98,7 +98,7 @@ class StudyGroupControllerTest {
 		// given
 		CreateGroupRequest request = new CreateGroupRequest("name", LocalDate.now(), LocalDate.now().plusDays(30),
 			"introduction");
-		CreateGroupResponse response = new CreateGroupResponse("inviteCode");
+		GroupCodeResponse response = new GroupCodeResponse("inviteCode");
 		MockMultipartFile requestPart = new MockMultipartFile("request", "", "application/json",
 			objectMapper.writeValueAsString(request).getBytes());
 		MockMultipartFile profileImage = new MockMultipartFile("profileImage", "profile.jpg", "image/jpeg",
@@ -160,8 +160,7 @@ class StudyGroupControllerTest {
 		mockMvc.perform(post("/api/group/{code}/join", code)
 				.header("Authorization", token)
 				.contentType(MediaType.APPLICATION_JSON))
-			.andExpect(status().isOk())
-			.andExpect(content().string("OK"));
+			.andExpect(status().isOk());
 
 		verify(studyGroupService, times(1)).joinGroupWithCode(user, code);
 	}
@@ -258,8 +257,7 @@ class StudyGroupControllerTest {
 				.header("Authorization", token)
 				.param("groupId", String.valueOf(groupId))
 				.contentType(MediaType.APPLICATION_JSON))
-			.andExpect(status().isOk())
-			.andExpect(content().string("OK"));
+			.andExpect(status().isOk());
 
 		verify(studyGroupService, times(1)).deleteGroup(any(User.class), anyLong());
 	}
@@ -309,8 +307,7 @@ class StudyGroupControllerTest {
 				.param("userId", String.valueOf(userId))
 				.param("groupId", String.valueOf(groupId))
 				.contentType(MediaType.APPLICATION_JSON))
-			.andExpect(status().isOk())
-			.andExpect(content().string("OK"));
+			.andExpect(status().isOk());
 		verify(studyGroupService, times(1)).deleteMember(user, userId, groupId);
 	}
 
@@ -367,8 +364,7 @@ class StudyGroupControllerTest {
 					request1.setMethod("PATCH");
 					return request1;
 				}))
-			.andExpect(status().isOk())
-			.andExpect(content().string("OK"));
+			.andExpect(status().isOk());
 
 		verify(studyGroupService, times(1)).editGroup(any(User.class), any(EditGroupRequest.class),
 			any(MultipartFile.class));
@@ -590,14 +586,15 @@ class StudyGroupControllerTest {
 	@Test
 	@DisplayName("그룹 초대 코드 조회 성공")
 	void getGroupCode() throws Exception {
+		GroupCodeResponse groupCodeResponse = new GroupCodeResponse(code);
 		// given
-		when(studyGroupService.getGroupCode(user, groupId)).thenReturn(code);
+		when(studyGroupService.getGroupCode(user, groupId)).thenReturn(groupCodeResponse);
 		// when, then
 		mockMvc.perform(get("/api/group/group-code")
 				.header("Authorization", token)
 				.param("groupId", String.valueOf(groupId)))
 			.andExpect(status().isOk())
-			.andExpect(content().string(code));
+			.andExpect(jsonPath("$.inviteCode").value(code));
 		verify(studyGroupService, times(1)).getGroupCode(any(User.class), anyLong());
 	}
 
@@ -697,8 +694,7 @@ class StudyGroupControllerTest {
 		mockMvc.perform(patch("/api/group/role")
 				.header("Authorization", token)
 				.content(objectMapper.writeValueAsString(request)))
-			.andExpect(status().isOk())
-			.andExpect(content().string("OK"));
+			.andExpect(status().isOk());
 		verify(studyGroupService, times(1)).updateGroupMemberRole(user, request);
 	}
 

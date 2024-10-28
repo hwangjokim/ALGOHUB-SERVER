@@ -53,7 +53,7 @@ public class BoardServiceTest {
 
 	private User user, user2, user3, user4;
 	private StudyGroup studyGroup;
-	private GroupMember groupMember, groupMember2, groupMember3;
+	private GroupMember groupMember2, groupMember3;
 	private Board board;
 
 	@BeforeEach
