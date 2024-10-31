@@ -27,6 +27,7 @@ import com.gamzabat.algohub.feature.group.studygroup.dto.GetGroupResponse;
 import com.gamzabat.algohub.feature.group.studygroup.dto.GetStudyGroupListsResponse;
 import com.gamzabat.algohub.feature.group.studygroup.dto.GetStudyGroupWithCodeResponse;
 import com.gamzabat.algohub.feature.group.studygroup.dto.GroupCodeResponse;
+import com.gamzabat.algohub.feature.group.studygroup.dto.UpdateBookmarkResponse;
 import com.gamzabat.algohub.feature.group.studygroup.dto.UpdateGroupMemberRoleRequest;
 import com.gamzabat.algohub.feature.group.studygroup.service.StudyGroupService;
 import com.gamzabat.algohub.feature.user.domain.User;
@@ -113,7 +114,7 @@ public class StudyGroupController {
 
 	@GetMapping(value = "group-code")
 	@Operation(summary = "그룹 초대 코드 조회")
-	public ResponseEntity<Object> getGroupCode(@AuthedUser User user, @RequestParam Long groupId) {
+	public ResponseEntity<GroupCodeResponse> getGroupCode(@AuthedUser User user, @RequestParam Long groupId) {
 		return ResponseEntity.ok().body(studyGroupService.getGroupCode(user, groupId));
 	}
 
@@ -132,8 +133,9 @@ public class StudyGroupController {
 
 	@PostMapping(value = "/bookmark")
 	@Operation(summary = "스터디 그룹 즐겨찾기 추가/취소 API", description = "스터디 그룹을 즐겨찾기 추가,취소할 때 사용하는 API")
-	public ResponseEntity<String> updateBookmarkGroup(@AuthedUser User user, @RequestParam Long groupId) {
-		String response = studyGroupService.updateBookmarkGroup(user, groupId);
+	public ResponseEntity<UpdateBookmarkResponse> updateBookmarkGroup(@AuthedUser User user,
+		@RequestParam Long groupId) {
+		UpdateBookmarkResponse response = studyGroupService.updateBookmarkGroup(user, groupId);
 		return ResponseEntity.ok().body(response);
 	}
 

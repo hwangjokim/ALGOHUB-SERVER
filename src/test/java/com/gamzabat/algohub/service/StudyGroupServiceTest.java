@@ -7,7 +7,6 @@ import java.lang.reflect.Field;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -26,7 +25,6 @@ import org.springframework.http.HttpStatus;
 import org.springframework.mock.web.MockMultipartFile;
 
 import com.gamzabat.algohub.common.DateFormatUtil;
-import com.gamzabat.algohub.constants.BOJResultConstants;
 import com.gamzabat.algohub.enums.Role;
 import com.gamzabat.algohub.exception.StudyGroupValidationException;
 import com.gamzabat.algohub.exception.UserValidationException;
@@ -34,11 +32,13 @@ import com.gamzabat.algohub.feature.group.ranking.repository.RankingRepository;
 import com.gamzabat.algohub.feature.group.studygroup.domain.BookmarkedStudyGroup;
 import com.gamzabat.algohub.feature.group.studygroup.domain.GroupMember;
 import com.gamzabat.algohub.feature.group.studygroup.domain.StudyGroup;
+import com.gamzabat.algohub.feature.group.studygroup.dto.BookmarkStatus;
 import com.gamzabat.algohub.feature.group.studygroup.dto.CreateGroupRequest;
 import com.gamzabat.algohub.feature.group.studygroup.dto.EditGroupRequest;
 import com.gamzabat.algohub.feature.group.studygroup.dto.GetGroupMemberResponse;
 import com.gamzabat.algohub.feature.group.studygroup.dto.GetStudyGroupListsResponse;
 import com.gamzabat.algohub.feature.group.studygroup.dto.GetStudyGroupResponse;
+import com.gamzabat.algohub.feature.group.studygroup.dto.UpdateBookmarkResponse;
 import com.gamzabat.algohub.feature.group.studygroup.dto.UpdateGroupMemberRoleRequest;
 import com.gamzabat.algohub.feature.group.studygroup.etc.RoleOfGroupMember;
 import com.gamzabat.algohub.feature.group.studygroup.exception.CannotFoundGroupException;
@@ -508,9 +508,9 @@ class StudyGroupServiceTest {
 		when(bookmarkedStudyGroupRepository.findByUserAndStudyGroup(user2, group)).thenReturn(
 			Optional.empty());
 		// when
-		String response = studyGroupService.updateBookmarkGroup(user2, groupId);
+		UpdateBookmarkResponse response = studyGroupService.updateBookmarkGroup(user2, groupId);
 		// then
-		assertThat(response).isEqualTo("스터디 그룹 즐겨찾기 추가 성공");
+		assertThat(response.status()).isEqualTo(BookmarkStatus.BOOKMARKED);
 	}
 
 	@Test
@@ -526,9 +526,9 @@ class StudyGroupServiceTest {
 		when(bookmarkedStudyGroupRepository.findByUserAndStudyGroup(user2, group)).thenReturn(
 			Optional.of(bookmarkedStudyGroup));
 		// when
-		String response = studyGroupService.updateBookmarkGroup(user2, groupId);
+		UpdateBookmarkResponse response = studyGroupService.updateBookmarkGroup(user2, groupId);
 		// then
-		assertThat(response).isEqualTo("스터디 그룹 즐겨찾기 삭제 성공");
+		assertThat(response.status()).isEqualTo(BookmarkStatus.UNMARKED);
 	}
 
 	@Test

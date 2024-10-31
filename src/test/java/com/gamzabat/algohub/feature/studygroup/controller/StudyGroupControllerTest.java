@@ -36,6 +36,7 @@ import com.gamzabat.algohub.config.SpringSecurityConfig;
 import com.gamzabat.algohub.exception.StudyGroupValidationException;
 import com.gamzabat.algohub.exception.UserValidationException;
 import com.gamzabat.algohub.feature.group.studygroup.controller.StudyGroupController;
+import com.gamzabat.algohub.feature.group.studygroup.dto.BookmarkStatus;
 import com.gamzabat.algohub.feature.group.studygroup.dto.CheckSolvedProblemResponse;
 import com.gamzabat.algohub.feature.group.studygroup.dto.CreateGroupRequest;
 import com.gamzabat.algohub.feature.group.studygroup.dto.EditGroupRequest;
@@ -43,6 +44,7 @@ import com.gamzabat.algohub.feature.group.studygroup.dto.GetGroupMemberResponse;
 import com.gamzabat.algohub.feature.group.studygroup.dto.GetStudyGroupListsResponse;
 import com.gamzabat.algohub.feature.group.studygroup.dto.GetStudyGroupResponse;
 import com.gamzabat.algohub.feature.group.studygroup.dto.GroupCodeResponse;
+import com.gamzabat.algohub.feature.group.studygroup.dto.UpdateBookmarkResponse;
 import com.gamzabat.algohub.feature.group.studygroup.dto.UpdateGroupMemberRoleRequest;
 import com.gamzabat.algohub.feature.group.studygroup.etc.RoleOfGroupMember;
 import com.gamzabat.algohub.feature.group.studygroup.exception.CannotFoundGroupException;
@@ -634,13 +636,15 @@ class StudyGroupControllerTest {
 	@DisplayName("스터디 그룹 즐겨찾기 추가 성공")
 	void updateBookmarked_1() throws Exception {
 		// given
-		when(studyGroupService.updateBookmarkGroup(user, groupId)).thenReturn("스터디 그룹 즐겨찾기 추가 성공");
+		when(studyGroupService.updateBookmarkGroup(user, groupId)).thenReturn(
+			new UpdateBookmarkResponse(BookmarkStatus.BOOKMARKED));
 		// when, then
 		mockMvc.perform(post("/api/group/bookmark")
 				.header("Authorization", token)
 				.param("groupId", String.valueOf(groupId)))
 			.andExpect(status().isOk())
-			.andExpect(content().string("스터디 그룹 즐겨찾기 추가 성공"));
+			.andExpect(jsonPath("$.status").value(BookmarkStatus.BOOKMARKED.getDescription()));
+
 		verify(studyGroupService, times(1)).updateBookmarkGroup(user, groupId);
 	}
 
@@ -648,13 +652,14 @@ class StudyGroupControllerTest {
 	@DisplayName("스터디 그룹 즐겨찾기 삭제 성공")
 	void updateBookmarked_2() throws Exception {
 		// given
-		when(studyGroupService.updateBookmarkGroup(user, groupId)).thenReturn("스터디 그룹 즐겨찾기 실패 성공");
+		when(studyGroupService.updateBookmarkGroup(user, groupId)).thenReturn(
+			new UpdateBookmarkResponse(BookmarkStatus.UNMARKED));
 		// when, then
 		mockMvc.perform(post("/api/group/bookmark")
 				.header("Authorization", token)
 				.param("groupId", String.valueOf(groupId)))
 			.andExpect(status().isOk())
-			.andExpect(content().string("스터디 그룹 즐겨찾기 실패 성공"));
+			.andExpect(jsonPath("$.status").value(BookmarkStatus.UNMARKED.getDescription()));
 		verify(studyGroupService, times(1)).updateBookmarkGroup(user, groupId);
 	}
 

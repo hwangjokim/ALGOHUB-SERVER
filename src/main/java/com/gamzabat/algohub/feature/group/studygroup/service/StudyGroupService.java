@@ -23,6 +23,7 @@ import com.gamzabat.algohub.feature.group.ranking.repository.RankingRepository;
 import com.gamzabat.algohub.feature.group.studygroup.domain.BookmarkedStudyGroup;
 import com.gamzabat.algohub.feature.group.studygroup.domain.GroupMember;
 import com.gamzabat.algohub.feature.group.studygroup.domain.StudyGroup;
+import com.gamzabat.algohub.feature.group.studygroup.dto.BookmarkStatus;
 import com.gamzabat.algohub.feature.group.studygroup.dto.CheckSolvedProblemResponse;
 import com.gamzabat.algohub.feature.group.studygroup.dto.CreateGroupRequest;
 import com.gamzabat.algohub.feature.group.studygroup.dto.EditGroupRequest;
@@ -32,6 +33,7 @@ import com.gamzabat.algohub.feature.group.studygroup.dto.GetStudyGroupListsRespo
 import com.gamzabat.algohub.feature.group.studygroup.dto.GetStudyGroupResponse;
 import com.gamzabat.algohub.feature.group.studygroup.dto.GetStudyGroupWithCodeResponse;
 import com.gamzabat.algohub.feature.group.studygroup.dto.GroupCodeResponse;
+import com.gamzabat.algohub.feature.group.studygroup.dto.UpdateBookmarkResponse;
 import com.gamzabat.algohub.feature.group.studygroup.dto.UpdateGroupMemberRoleRequest;
 import com.gamzabat.algohub.feature.group.studygroup.etc.RoleOfGroupMember;
 import com.gamzabat.algohub.feature.group.studygroup.exception.CannotFoundGroupException;
@@ -357,7 +359,7 @@ public class StudyGroupService {
 	}
 
 	@Transactional
-	public String updateBookmarkGroup(User user, Long groupId) {
+	public UpdateBookmarkResponse updateBookmarkGroup(User user, Long groupId) {
 		StudyGroup studyGroup = studyGroupRepository.findById(groupId)
 			.orElseThrow(() -> new CannotFoundGroupException("존재하지 않는 그룹 입니다."));
 
@@ -370,10 +372,10 @@ public class StudyGroupService {
 		if (bookmarked.isEmpty()) {
 			bookmarkedStudyGroupRepository.save(
 				BookmarkedStudyGroup.builder().studyGroup(studyGroup).user(user).build());
-			return "스터디 그룹 즐겨찾기 추가 성공";
+			return new UpdateBookmarkResponse(BookmarkStatus.BOOKMARKED);
 		} else {
 			bookmarkedStudyGroupRepository.delete(bookmarked.get());
-			return "스터디 그룹 즐겨찾기 삭제 성공";
+			return new UpdateBookmarkResponse(BookmarkStatus.UNMARKED);
 		}
 	}
 
