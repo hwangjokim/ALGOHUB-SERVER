@@ -451,6 +451,49 @@ public class StudyGroupService {
 		log.info("success to update group visibility ( userId : {} )", user.getId());
 	}
 
+	@Transactional(readOnly = true)
+	public GetStudyGroupListsResponse getOtherStudyGroupList(Long targetUserId) {
+		User targetUser = userRepository.findById(targetUserId)
+			.orElseThrow(() -> new CannotFoundUserException(HttpStatus.NOT_FOUND.value(), "존재하지 않는 유저입니다."));
+		List<StudyGroup> groups = groupRepository.findAllByUser(targetUser);
+
+		List<GetStudyGroupResponse> bookmarked = bookmarkedStudyGroupRepository.findAllByUser(targetUser).stream()
+			.filter(group -> isVisible(group.getStudyGroup(), targetUser))
+			.map(bookmark -> getStudyGroupResponseDTO(targetUser, bookmark.getStudyGroup()))
+			.toList();
+
+		LocalDate today = LocalDate.now();
+
+		List<GetStudyGroupResponse> done = groups.stream()
+			.filter(group -> group.getEndDate() != null && group.getEndDate().isBefore(today) && isVisible(group,
+				targetUser))
+			.map(group -> getStudyGroupResponseDTO(targetUser, group))
+			.toList();
+
+		List<GetStudyGroupResponse> inProgress = groups.stream()
+			.filter(
+				group -> !(group.getStartDate() == null || group.getStartDate().isAfter(today))
+					&& !(group.getEndDate() == null || group.getEndDate().isBefore(today)) && isVisible(group,
+					targetUser))
+			.map(group -> getStudyGroupResponseDTO(targetUser, group))
+			.toList();
+
+		List<GetStudyGroupResponse> queued = groups.stream()
+			.filter(group -> group.getStartDate() != null && group.getStartDate().isAfter(today) && isVisible(group,
+				targetUser))
+			.map(group -> getStudyGroupResponseDTO(targetUser, group))
+			.toList();
+
+		GetStudyGroupListsResponse response = new GetStudyGroupListsResponse(bookmarked, done, inProgress, queued);
+
+		log.info("success to get study group list");
+		return response;
+	}
+
+	private boolean isVisible(StudyGroup group, User user) {
+		return groupMemberRepository.existsByUserAndStudyGroupAndIsVisible(user, group, true);
+	}
+
 	private void sendNewMemberNotification(StudyGroup studyGroup, GroupMember newMember) {
 		List<GroupMember> members = groupMemberRepository.findAllByStudyGroup(studyGroup)
 			.stream()
