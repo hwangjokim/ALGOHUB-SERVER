@@ -80,7 +80,7 @@ public class NoticeService {
 			.title(notice.getTitle())
 			.content(notice.getContent())
 			.category(notice.getCategory())
-			.createAt(DateFormatUtil.formatDate(notice.getCreatedAt().toLocalDate()))
+			.createAt(DateFormatUtil.formatDateTimeForNotice(notice.getCreatedAt()))
 			.isRead(true)
 			.build();
 	}
