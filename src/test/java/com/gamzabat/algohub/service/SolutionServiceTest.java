@@ -40,6 +40,7 @@ import com.gamzabat.algohub.feature.problem.repository.ProblemRepository;
 import com.gamzabat.algohub.feature.solution.domain.Solution;
 import com.gamzabat.algohub.feature.solution.dto.CreateSolutionRequest;
 import com.gamzabat.algohub.feature.solution.dto.GetSolutionResponse;
+import com.gamzabat.algohub.feature.solution.dto.GetSolutionWithGroupIdResponse;
 import com.gamzabat.algohub.feature.solution.exception.CannotFoundSolutionException;
 import com.gamzabat.algohub.feature.solution.repository.SolutionCommentRepository;
 import com.gamzabat.algohub.feature.solution.repository.SolutionRepository;
@@ -66,8 +67,10 @@ class SolutionServiceTest {
 	@Mock
 	private UserRepository userRepository;
 	private User user, user2;
-	private Problem problem;
-	private StudyGroup group;
+	private Problem problem, problem1, problem2;
+	private StudyGroup group, group1;
+	private Long groupId = 30L;
+	private Integer problemNumber = 1010;
 	DateTimeFormatter formatter;
 
 	@BeforeEach
@@ -78,9 +81,28 @@ class SolutionServiceTest {
 		user2 = User.builder().email("email2").password("password").nickname("nickname2").bjNickname("bjNickname2")
 			.role(Role.USER).profileImage("profileImage").build();
 		group = StudyGroup.builder().name("name").groupImage("imageUrl").groupCode("code").build();
+		group1 = StudyGroup.builder().name("name1").groupImage("imageUrl1").groupCode("code1").build();
 		problem = Problem.builder()
 			.studyGroup(group)
 			.link("link")
+			.number(1010)
+			.level(100)
+			.startDate(LocalDate.now())
+			.endDate(LocalDate.now())
+			.build();
+		problem1 = Problem.builder()
+			.studyGroup(group)
+			.link("link1")
+			.number(1020)
+			.level(200)
+			.startDate(LocalDate.now())
+			.endDate(LocalDate.now())
+			.build();
+		problem2 = Problem.builder()
+			.studyGroup(group1)
+			.link("link2")
+			.number(1030)
+			.level(300)
 			.startDate(LocalDate.now())
 			.endDate(LocalDate.now())
 			.build();
@@ -129,46 +151,46 @@ class SolutionServiceTest {
 		assertThat(compileErrorResult.getContent().size()).isEqualTo(10);
 		assertThat(compileErrorResult.getTotalElements()).isEqualTo(10);
 		for (int i = 0; i < 5; i++) {
-			assertThat(compileErrorResult.getContent().get(i).content()).isEqualTo("content" + i);
-			assertThat(compileErrorResult.getContent().get(i).result()).isEqualTo("컴파일 에러");
-			assertThat(compileErrorResult.getContent().get(i).memoryUsage()).isEqualTo(i);
-			assertThat(compileErrorResult.getContent().get(i).executionTime()).isEqualTo(i);
-			assertThat(compileErrorResult.getContent().get(i).nickname()).isEqualTo("nickname1");
-			assertThat(compileErrorResult.getContent().get(i).language()).isEqualTo("Java 11");
-			assertThat(compileErrorResult.getContent().get(i).solvedDateTime()).isEqualTo(
+			assertThat(compileErrorResult.getContent().get(i).getContent()).isEqualTo("content" + i);
+			assertThat(compileErrorResult.getContent().get(i).getResult()).isEqualTo("컴파일 에러");
+			assertThat(compileErrorResult.getContent().get(i).getMemoryUsage()).isEqualTo(i);
+			assertThat(compileErrorResult.getContent().get(i).getExecutionTime()).isEqualTo(i);
+			assertThat(compileErrorResult.getContent().get(i).getNickname()).isEqualTo("nickname1");
+			assertThat(compileErrorResult.getContent().get(i).getLanguage()).isEqualTo("Java 11");
+			assertThat(compileErrorResult.getContent().get(i).getSolvedDateTime()).isEqualTo(
 				DateFormatUtil.formatDateTime(fixedDateTime));
 		}
 		for (int i = 5; i < 10; i++) {
-			assertThat(compileErrorResult.getContent().get(i).content()).isEqualTo("content" + i);
-			assertThat(compileErrorResult.getContent().get(i).result()).isEqualTo("컴파일 에러");
-			assertThat(compileErrorResult.getContent().get(i).memoryUsage()).isEqualTo(i);
-			assertThat(compileErrorResult.getContent().get(i).executionTime()).isEqualTo(i);
-			assertThat(compileErrorResult.getContent().get(i).nickname()).isEqualTo("nickname2");
-			assertThat(compileErrorResult.getContent().get(i).language()).isEqualTo("C++17");
-			assertThat(compileErrorResult.getContent().get(i).solvedDateTime()).isEqualTo(
+			assertThat(compileErrorResult.getContent().get(i).getContent()).isEqualTo("content" + i);
+			assertThat(compileErrorResult.getContent().get(i).getResult()).isEqualTo("컴파일 에러");
+			assertThat(compileErrorResult.getContent().get(i).getMemoryUsage()).isEqualTo(i);
+			assertThat(compileErrorResult.getContent().get(i).getExecutionTime()).isEqualTo(i);
+			assertThat(compileErrorResult.getContent().get(i).getNickname()).isEqualTo("nickname2");
+			assertThat(compileErrorResult.getContent().get(i).getLanguage()).isEqualTo("C++17");
+			assertThat(compileErrorResult.getContent().get(i).getSolvedDateTime()).isEqualTo(
 				DateFormatUtil.formatDateTime(fixedDateTime));
 		}
 		// 2) 맞았습니다!! 풀이 목록 조회
 		assertThat(correctResult.getContent().size()).isEqualTo(10);
 		assertThat(correctResult.getTotalElements()).isEqualTo(10);
 		for (int i = 0; i < 5; i++) {
-			assertThat(correctResult.getContent().get(i).content()).isEqualTo("content" + (i + 10));
-			assertThat(correctResult.getContent().get(i).result()).isEqualTo("맞았습니다!!");
-			assertThat(correctResult.getContent().get(i).memoryUsage()).isEqualTo(i + 10);
-			assertThat(correctResult.getContent().get(i).executionTime()).isEqualTo(i + 10);
-			assertThat(correctResult.getContent().get(i).nickname()).isEqualTo("nickname1");
-			assertThat(correctResult.getContent().get(i).language()).isEqualTo("Java 11");
-			assertThat(correctResult.getContent().get(i).solvedDateTime()).isEqualTo(
+			assertThat(correctResult.getContent().get(i).getContent()).isEqualTo("content" + (i + 10));
+			assertThat(correctResult.getContent().get(i).getResult()).isEqualTo("맞았습니다!!");
+			assertThat(correctResult.getContent().get(i).getMemoryUsage()).isEqualTo(i + 10);
+			assertThat(correctResult.getContent().get(i).getExecutionTime()).isEqualTo(i + 10);
+			assertThat(correctResult.getContent().get(i).getNickname()).isEqualTo("nickname1");
+			assertThat(correctResult.getContent().get(i).getLanguage()).isEqualTo("Java 11");
+			assertThat(correctResult.getContent().get(i).getSolvedDateTime()).isEqualTo(
 				DateFormatUtil.formatDateTime(fixedDateTime));
 		}
 		for (int i = 5; i < 10; i++) {
-			assertThat(correctResult.getContent().get(i).content()).isEqualTo("content" + (i + 10));
-			assertThat(correctResult.getContent().get(i).result()).isEqualTo("맞았습니다!!");
-			assertThat(correctResult.getContent().get(i).memoryUsage()).isEqualTo(i + 10);
-			assertThat(correctResult.getContent().get(i).executionTime()).isEqualTo(i + 10);
-			assertThat(correctResult.getContent().get(i).nickname()).isEqualTo("nickname2");
-			assertThat(correctResult.getContent().get(i).language()).isEqualTo("PyPy3");
-			assertThat(correctResult.getContent().get(i).solvedDateTime()).isEqualTo(
+			assertThat(correctResult.getContent().get(i).getContent()).isEqualTo("content" + (i + 10));
+			assertThat(correctResult.getContent().get(i).getResult()).isEqualTo("맞았습니다!!");
+			assertThat(correctResult.getContent().get(i).getMemoryUsage()).isEqualTo(i + 10);
+			assertThat(correctResult.getContent().get(i).getExecutionTime()).isEqualTo(i + 10);
+			assertThat(correctResult.getContent().get(i).getNickname()).isEqualTo("nickname2");
+			assertThat(correctResult.getContent().get(i).getLanguage()).isEqualTo("PyPy3");
+			assertThat(correctResult.getContent().get(i).getSolvedDateTime()).isEqualTo(
 				DateFormatUtil.formatDateTime(fixedDateTime));
 		}
 	}
@@ -198,13 +220,13 @@ class SolutionServiceTest {
 		assertThat(result.getContent().size()).isEqualTo(5);
 		assertThat(result.getTotalElements()).isEqualTo(5);
 		for (int i = 0; i < 5; i++) {
-			assertThat(result.getContent().get(i).content()).isEqualTo("content" + (i + 10));
-			assertThat(result.getContent().get(i).result()).isEqualTo("맞았습니다!!");
-			assertThat(result.getContent().get(i).memoryUsage()).isEqualTo(i + 10);
-			assertThat(result.getContent().get(i).executionTime()).isEqualTo(i + 10);
-			assertThat(result.getContent().get(i).nickname()).isEqualTo("nickname1");
-			assertThat(result.getContent().get(i).language()).isEqualTo("Java 11");
-			assertThat(result.getContent().get(i).solvedDateTime()).isEqualTo(
+			assertThat(result.getContent().get(i).getContent()).isEqualTo("content" + (i + 10));
+			assertThat(result.getContent().get(i).getResult()).isEqualTo("맞았습니다!!");
+			assertThat(result.getContent().get(i).getMemoryUsage()).isEqualTo(i + 10);
+			assertThat(result.getContent().get(i).getExecutionTime()).isEqualTo(i + 10);
+			assertThat(result.getContent().get(i).getNickname()).isEqualTo("nickname1");
+			assertThat(result.getContent().get(i).getLanguage()).isEqualTo("Java 11");
+			assertThat(result.getContent().get(i).getSolvedDateTime()).isEqualTo(
 				DateFormatUtil.formatDateTime(fixedDateTime));
 		}
 	}
@@ -271,16 +293,16 @@ class SolutionServiceTest {
 		// when
 		GetSolutionResponse response = solutionService.getSolution(user, 10L);
 		// then
-		assertThat(response.content()).isEqualTo("content");
-		assertThat(response.result()).isEqualTo("맞았습니다!!");
-		assertThat(response.memoryUsage()).isEqualTo(10);
-		assertThat(response.executionTime()).isEqualTo(10);
-		assertThat(response.nickname()).isEqualTo("nickname1");
-		assertThat(response.profileImage()).isEqualTo("profileImage");
-		assertThat(response.language()).isEqualTo("Java");
-		assertThat(response.codeLength()).isEqualTo(10);
-		assertThat(response.commentCount()).isEqualTo(0);
-		assertThat(response.solvedDateTime()).isEqualTo(DateFormatUtil.formatDateTime(LocalDateTime.now()));
+		assertThat(response.getContent()).isEqualTo("content");
+		assertThat(response.getResult()).isEqualTo("맞았습니다!!");
+		assertThat(response.getMemoryUsage()).isEqualTo(10);
+		assertThat(response.getExecutionTime()).isEqualTo(10);
+		assertThat(response.getNickname()).isEqualTo("nickname1");
+		assertThat(response.getProfileImage()).isEqualTo("profileImage");
+		assertThat(response.getLanguage()).isEqualTo("Java");
+		assertThat(response.getCodeLength()).isEqualTo(10);
+		assertThat(response.getCommentCount()).isEqualTo(0);
+		assertThat(response.getSolvedDateTime()).isEqualTo(DateFormatUtil.formatDateTime(LocalDateTime.now()));
 	}
 
 	@Test
@@ -303,16 +325,16 @@ class SolutionServiceTest {
 		// when
 		GetSolutionResponse response = solutionService.getSolution(user2, 10L);
 		// then
-		assertThat(response.content()).isEqualTo("content");
-		assertThat(response.result()).isEqualTo("맞았습니다!!");
-		assertThat(response.memoryUsage()).isEqualTo(10);
-		assertThat(response.executionTime()).isEqualTo(10);
-		assertThat(response.nickname()).isEqualTo("nickname1");
-		assertThat(response.profileImage()).isEqualTo("profileImage");
-		assertThat(response.language()).isEqualTo("Java");
-		assertThat(response.codeLength()).isEqualTo(10);
-		assertThat(response.commentCount()).isEqualTo(0);
-		assertThat(response.solvedDateTime()).isEqualTo(DateFormatUtil.formatDateTime(LocalDateTime.now()));
+		assertThat(response.getContent()).isEqualTo("content");
+		assertThat(response.getResult()).isEqualTo("맞았습니다!!");
+		assertThat(response.getMemoryUsage()).isEqualTo(10);
+		assertThat(response.getExecutionTime()).isEqualTo(10);
+		assertThat(response.getNickname()).isEqualTo("nickname1");
+		assertThat(response.getProfileImage()).isEqualTo("profileImage");
+		assertThat(response.getLanguage()).isEqualTo("Java");
+		assertThat(response.getCodeLength()).isEqualTo(10);
+		assertThat(response.getCommentCount()).isEqualTo(0);
+		assertThat(response.getSolvedDateTime()).isEqualTo(DateFormatUtil.formatDateTime(LocalDateTime.now()));
 	}
 
 	@Test
@@ -446,5 +468,96 @@ class SolutionServiceTest {
 		// then
 		verify(solutionRepository, times(1)).save(any(Solution.class));
 		verify(notificationService, times(1)).sendNotificationToMembers(any(), any(), any(), any());
+	}
+
+	@Test
+	@DisplayName("그룹 내 나의 풀이 전체 조회 성공 : 문제 필터링")
+	void getMySolutionsInGroup() {
+		// given
+		Pageable pageable = PageRequest.of(0, 10);
+		List<Solution> solutions = new ArrayList<>();
+		LocalDateTime fixedDateTime = LocalDateTime.now();
+
+		for (int i = 0; i < 5; i++) {
+			solutions.add(Solution.builder()
+				.problem(problem)
+				.user(user)
+				.codeLength(i)
+				.result("맞았습니다!!")
+				.language("Java 11")
+				.solvedDateTime(fixedDateTime)
+				.build());
+		}
+
+		Page<Solution> mySolutions = new PageImpl<>(solutions, pageable, 10);
+		when(studyGroupRepository.findById(groupId)).thenReturn(Optional.ofNullable(group));
+		when(groupMemberRepository.existsByUserAndStudyGroup(user, group)).thenReturn(true);
+		when(solutionRepository.findAllFilteredMySolutionsInGroup(user, group, problemNumber, null, null,
+			pageable)).thenReturn(mySolutions);
+		// when
+		Page<GetSolutionResponse> responses = solutionService.getMySolutionsInGroup(user, groupId, problemNumber, null,
+			null,
+			pageable);
+		// then
+		for (int i = 0; i < 5; i++) {
+			assertThat(responses.getContent().get(i).getNickname()).isEqualTo("nickname1");
+			assertThat(responses.getContent().get(i).getProblemLevel()).isEqualTo(problem.getLevel());
+		}
+	}
+
+	@Test
+	@DisplayName("나의 풀이 전체 조회 성공")
+	void getMySolutions() {
+		// given
+		Pageable pageable = PageRequest.of(0, 10);
+		List<Solution> solutions = new ArrayList<>();
+		LocalDateTime fixedDateTime = LocalDateTime.now();
+
+		for (int i = 0; i < 5; i++) {
+			solutions.add(Solution.builder()
+				.problem(problem)
+				.user(user)
+				.codeLength(i)
+				.result("맞았습니다!!")
+				.language("Java 11")
+				.solvedDateTime(fixedDateTime)
+				.build());
+		}
+		for (int i = 5; i < 10; i++) {
+			solutions.add(Solution.builder()
+				.problem(problem)
+				.user(user)
+				.codeLength(i)
+				.result("틀렸습니다")
+				.language("Java 11")
+				.solvedDateTime(fixedDateTime)
+				.build());
+		}
+		for (int i = 10; i < 15; i++) {
+			solutions.add(Solution.builder()
+				.problem(problem2)
+				.user(user)
+				.codeLength(i)
+				.result("컴파일 에러")
+				.language("Java 11")
+				.solvedDateTime(fixedDateTime)
+				.build());
+		}
+
+		Page<Solution> mySolutions = new PageImpl<>(solutions, pageable, 10);
+		when(solutionRepository.findAllFilteredMySolutions(user, null, null, null,
+			pageable)).thenReturn(mySolutions);
+		// when
+		Page<GetSolutionWithGroupIdResponse> responses = solutionService.getMySolutions(user, null, null,
+			null, pageable);
+		// then
+		for (int i = 0; i < 10; i++) {
+			assertThat(responses.getContent().get(i).getNickname()).isEqualTo("nickname1");
+			assertThat(responses.getContent().get(i).getGroupId()).isEqualTo(problem.getStudyGroup().getId());
+		}
+		for (int i = 10; i < 15; i++) {
+			assertThat(responses.getContent().get(i).getNickname()).isEqualTo("nickname1");
+			assertThat(responses.getContent().get(i).getGroupId()).isEqualTo(problem2.getStudyGroup().getId());
+		}
 	}
 }
