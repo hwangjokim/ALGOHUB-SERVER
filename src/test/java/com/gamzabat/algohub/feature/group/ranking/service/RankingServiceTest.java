@@ -20,6 +20,10 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 
 import com.gamzabat.algohub.enums.Role;
@@ -144,26 +148,28 @@ class RankingServiceTest {
 	@DisplayName("전체랭킹 조회 성공")
 	void getAllRank_SuccessByOwner() {
 		//given
+		Pageable pageable = PageRequest.of(0, 4);
 		when(studyGroupRepository.findById(10L)).thenReturn(Optional.of(group));
 		when(groupMemberRepository.existsByUserAndStudyGroup(user2, group)).thenReturn(true);
 		List<Ranking> ranking = new ArrayList<>();
+		ranking.add(ranking1);
 		ranking.add(ranking2);
 		ranking.add(ranking3);
-		ranking.add(ranking1);
 		ranking.add(ranking4);
-		when(rankingRepository.findAllByStudyGroup(group)).thenReturn(ranking);
+		Page<Ranking> page = new PageImpl<>(ranking, pageable, ranking.size());
+		when(rankingRepository.findAllByStudyGroup(group, pageable)).thenReturn(page);
 
 		//when
-		List<GetRankingResponse> result = rankingService.getAllRank(user2, 10L);
+		Page<GetRankingResponse> result = rankingService.getAllRank(user2, 10L, pageable);
 
 		//then
-		assertThat(result.size()).isEqualTo(4);
+		assertThat(result.getTotalElements()).isEqualTo(4);
 
 		for (int i = 0; i < 4; i++) {
-			assertThat(result.get(i).getProfileImage()).isEqualTo("image" + (i + 1));
-			assertThat(result.get(i).getSolvedCount()).isEqualTo(3 - i);
-			assertThat(result.get(i).getUserNickname()).isEqualTo("nickname" + (i + 1));
-			assertThat(result.get(i).getRank()).isEqualTo(i + 1);
+			assertThat(result.getContent().get(i).getProfileImage()).isEqualTo("image" + (i + 1));
+			assertThat(result.getContent().get(i).getSolvedCount()).isEqualTo(3 - i);
+			assertThat(result.getContent().get(i).getUserNickname()).isEqualTo("nickname" + (i + 1));
+			assertThat(result.getContent().get(i).getRank()).isEqualTo(i + 1);
 		}
 	}
 
@@ -171,10 +177,11 @@ class RankingServiceTest {
 	@DisplayName("전체랭킹 조회 실패 : 그룹을 못 찾은 경우")
 	void getAllRank_FailedByCannotFoundGroup() {
 		//given
+		Pageable pageable = PageRequest.of(0, 20);
 		when(studyGroupRepository.findById(9L)).thenReturn(Optional.empty());
 
 		//then
-		assertThatThrownBy(() -> rankingService.getAllRank(user, 9L))
+		assertThatThrownBy(() -> rankingService.getAllRank(user, 9L, pageable))
 			.isInstanceOf(CannotFoundGroupException.class)
 			.hasFieldOrPropertyWithValue("errors", "그룹을 찾을 수 없습니다.");
 	}
@@ -183,11 +190,12 @@ class RankingServiceTest {
 	@DisplayName("전체랭킹 조회 실패 : 랭킹을 확인할 권한이 없는 경우")
 	void getAllRank_FailedByAccess() {
 		//given
+		Pageable pageable = PageRequest.of(0, 20);
 		when(studyGroupRepository.findById(groupId)).thenReturn(Optional.of(group));
 		when(groupMemberRepository.existsByUserAndStudyGroup(user2, group)).thenReturn(false);
 
 		//then
-		assertThatThrownBy(() -> rankingService.getAllRank(user2, groupId))
+		assertThatThrownBy(() -> rankingService.getAllRank(user2, groupId, pageable))
 			.isInstanceOf(GroupMemberValidationException.class)
 			.hasFieldOrPropertyWithValue("code", HttpStatus.FORBIDDEN.value())
 			.hasFieldOrPropertyWithValue("error", "랭킹을 확인할 권한이 없습니다.");
