@@ -43,7 +43,6 @@ import com.gamzabat.algohub.feature.notification.service.NotificationService;
 import com.gamzabat.algohub.feature.problem.domain.Problem;
 import com.gamzabat.algohub.feature.problem.dto.CreateProblemRequest;
 import com.gamzabat.algohub.feature.problem.dto.EditProblemRequest;
-import com.gamzabat.algohub.feature.problem.dto.GetProblemListsResponse;
 import com.gamzabat.algohub.feature.problem.dto.GetProblemResponse;
 import com.gamzabat.algohub.feature.problem.exception.SolvedAcApiErrorException;
 import com.gamzabat.algohub.feature.problem.repository.ProblemRepository;
@@ -432,10 +431,10 @@ class ProblemServiceTest {
 	}
 
 	@Test
-	@DisplayName("문제 목록 조회 성공")
-	void getProblemList() throws NoSuchFieldException, IllegalAccessException {
+	@DisplayName("진행 중인 문제 목록 조회 성공")
+	void getInProgressProblems() throws NoSuchFieldException, IllegalAccessException {
 		// given
-		Pageable pageable = PageRequest.of(0, 20);
+		Pageable pageable = PageRequest.of(0, 10);
 		Field problemField = Problem.class.getDeclaredField("id");
 		problemField.setAccessible(true);
 
@@ -451,11 +450,41 @@ class ProblemServiceTest {
 			list.add(problem);
 			problemField.set(problem, (long)i);
 		}
-		for (int i = 10; i < 20; i++) {
+
+		Page<Problem> problemPage = new PageImpl<>(list.subList(0, 10), pageable, list.size());
+		when(groupRepository.findById(10L)).thenReturn(Optional.ofNullable(group));
+		when(problemRepository.findAllByStudyGroupAndEndDateGreaterThanEqual(eq(group), eq(LocalDate.now()),
+			any(Pageable.class))).thenReturn(problemPage);
+		when(groupMemberRepository.existsByUserAndStudyGroup(user, group)).thenReturn(true);
+		when(solutionRepository.countDistinctUsersWithCorrectSolutionsByProblemId(anyLong(),
+			anyString())).thenReturn(8);
+		when(solutionRepository.countDistinctUsersByProblemId(anyLong())).thenReturn(10);
+		// when
+		Page<GetProblemResponse> result = problemService.getInProgressProblems(user, 10L, pageable);
+		// then
+		for (int i = 0; i < 10; i++) {
+			assertThat(result.getContent().get(i).getProblemId()).isEqualTo(i);
+			assertThat(result.getContent().get(i).getLink()).isEqualTo("https://www.acmicpc.net/problem/" + i);
+			assertThat(result.getContent().get(i).getTitle()).isEqualTo("title" + i);
+			assertThat(result.getContent().get(i).getEndDate()).isEqualTo(
+				DateFormatUtil.formatDate(LocalDate.now().plusDays(i + 1)));
+		}
+	}
+
+	@Test
+	@DisplayName("마감된 문제 목록 조회 성공")
+	void getExpiredProblems() throws NoSuchFieldException, IllegalAccessException {
+		// given
+		Pageable pageable = PageRequest.of(0, 10);
+		Field problemField = Problem.class.getDeclaredField("id");
+		problemField.setAccessible(true);
+
+		List<Problem> list = new ArrayList<>();
+		for (int i = 0; i < 10; i++) {
 			Problem problem = Problem.builder()
 				.studyGroup(group)
-				.startDate(LocalDate.now().minusDays(i + 30))
-				.endDate(LocalDate.now().minusDays(i))
+				.startDate(LocalDate.now().minusDays(30))
+				.endDate(LocalDate.now().minusDays(3))
 				.link("https://www.acmicpc.net/problem/" + i)
 				.title("title" + i)
 				.build();
@@ -463,34 +492,23 @@ class ProblemServiceTest {
 			problemField.set(problem, (long)i);
 		}
 
-		Page<Problem> problemPage = new PageImpl<>(list.subList(0, 20), pageable, list.size());
+		Page<Problem> problemPage = new PageImpl<>(list.subList(0, 10), pageable, list.size());
 		when(groupRepository.findById(10L)).thenReturn(Optional.ofNullable(group));
-		when(problemRepository.findAllByStudyGroup(eq(group), any(Pageable.class))).thenReturn(problemPage);
+		when(problemRepository.findAllByStudyGroupAndEndDateGreaterThanEqual(eq(group), eq(LocalDate.now()),
+			any(Pageable.class))).thenReturn(problemPage);
 		when(groupMemberRepository.existsByUserAndStudyGroup(user, group)).thenReturn(true);
-		// 각 문제 ID에 대한 stub 설정
 		when(solutionRepository.countDistinctUsersWithCorrectSolutionsByProblemId(anyLong(),
 			anyString())).thenReturn(8);
 		when(solutionRepository.countDistinctUsersByProblemId(anyLong())).thenReturn(10);
 		// when
-		GetProblemListsResponse result = problemService.getProblemList(user, 10L, pageable);
+		Page<GetProblemResponse> result = problemService.getInProgressProblems(user, 10L, pageable);
 		// then
-		List<GetProblemResponse> inProgress = result.getInProgressProblems();
-		List<GetProblemResponse> expired = result.getExpiredProblems();
-		assertThat(inProgress.size()).isEqualTo(10);
-		assertThat(expired.size()).isEqualTo(10);
 		for (int i = 0; i < 10; i++) {
-			assertThat(inProgress.get(i).getProblemId()).isEqualTo(i);
-			assertThat(inProgress.get(i).getLink()).isEqualTo("https://www.acmicpc.net/problem/" + i);
-			assertThat(inProgress.get(i).getTitle()).isEqualTo("title" + i);
-			assertThat(inProgress.get(i).getEndDate()).isEqualTo(
-				DateFormatUtil.formatDate(LocalDate.now().plusDays(i + 1)));
-		}
-		for (int i = 10; i < 20; i++) {
-			assertThat(expired.get(i - 10).getProblemId()).isEqualTo(i);
-			assertThat(expired.get(i - 10).getLink()).isEqualTo("https://www.acmicpc.net/problem/" + i);
-			assertThat(expired.get(i - 10).getTitle()).isEqualTo("title" + i);
-			assertThat(expired.get(i - 10).getEndDate()).isEqualTo(
-				DateFormatUtil.formatDate(LocalDate.now().minusDays(i)));
+			assertThat(result.getContent().get(i).getProblemId()).isEqualTo(i);
+			assertThat(result.getContent().get(i).getLink()).isEqualTo("https://www.acmicpc.net/problem/" + i);
+			assertThat(result.getContent().get(i).getTitle()).isEqualTo("title" + i);
+			assertThat(result.getContent().get(i).getEndDate()).isEqualTo(
+				DateFormatUtil.formatDate(LocalDate.now().minusDays(3)));
 		}
 	}
 
@@ -500,7 +518,7 @@ class ProblemServiceTest {
 		// given
 		when(groupRepository.findById(10L)).thenReturn(Optional.empty());
 		// when, then
-		assertThatThrownBy(() -> problemService.getProblemList(user, 10L, any(Pageable.class)))
+		assertThatThrownBy(() -> problemService.getInProgressProblems(user, 10L, any(Pageable.class)))
 			.isInstanceOf(StudyGroupValidationException.class)
 			.hasFieldOrPropertyWithValue("code", HttpStatus.NOT_FOUND.value())
 			.hasFieldOrPropertyWithValue("error", "존재하지 않는 그룹 입니다.");
@@ -513,7 +531,7 @@ class ProblemServiceTest {
 		when(groupRepository.findById(10L)).thenReturn(Optional.ofNullable(group));
 		when(groupMemberRepository.existsByUserAndStudyGroup(user2, group)).thenReturn(false);
 		// when, then
-		assertThatThrownBy(() -> problemService.getProblemList(user2, 10L, any(Pageable.class)))
+		assertThatThrownBy(() -> problemService.getInProgressProblems(user2, 10L, any(Pageable.class)))
 			.isInstanceOf(ProblemValidationException.class)
 			.hasFieldOrPropertyWithValue("code", HttpStatus.FORBIDDEN.value())
 			.hasFieldOrPropertyWithValue("error", "문제를 조회할 권한이 없습니다.");
@@ -574,9 +592,8 @@ class ProblemServiceTest {
 	@Test
 	@DisplayName("예정 문제 조회 성공 : 방장")
 	void getQueuedProblemSuccess_1() throws NoSuchFieldException, IllegalAccessException {
-
-		//given
-		when(groupRepository.findById(10L)).thenReturn(Optional.ofNullable(group));
+		// given
+		Pageable pageable = PageRequest.of(0, 10);
 		Field problemField = Problem.class.getDeclaredField("id");
 		problemField.setAccessible(true);
 
@@ -592,19 +609,24 @@ class ProblemServiceTest {
 			list.add(problem);
 			problemField.set(problem, (long)i);
 		}
-		when(problemRepository.findAllByStudyGroupAndStartDateAfter(group, LocalDate.now())).thenReturn(list);
+		Page<Problem> problemPage = new PageImpl<>(list.subList(0, 10), pageable, list.size());
+
+		when(groupRepository.findById(10L)).thenReturn(Optional.ofNullable(group));
+		when(problemRepository.findAllByStudyGroupAndStartDateAfter(group, LocalDate.now(), pageable)).thenReturn(
+			problemPage);
 		when(groupMemberRepository.findByUserAndStudyGroup(user, group)).thenReturn(Optional.ofNullable(groupMember1));
 		//when
-		List<GetProblemResponse> result = problemService.getQueuedProblemList(user, group.getId());
+		Page<GetProblemResponse> result = problemService.getQueuedProblems(user, group.getId(), pageable);
 
 		//then
-		assertThat(result.size()).isEqualTo(10);
+		assertThat(result.getSize()).isEqualTo(10);
 		for (int i = 0; i < 10; i++) {
-			assertThat(result.get(i).getProblemId()).isEqualTo(i);
-			assertThat(result.get(i).getLink()).isEqualTo("https://www.acmicpc.net/problem/" + i);
-			assertThat(result.get(i).getTitle()).isEqualTo("title" + i);
-			assertThat(result.get(i).getStartDate()).isEqualTo(DateFormatUtil.formatDate(LocalDate.now().plusDays(1)));
-			assertThat(result.get(i).getEndDate()).isEqualTo(
+			assertThat(result.getContent().get(i).getProblemId()).isEqualTo(i);
+			assertThat(result.getContent().get(i).getLink()).isEqualTo("https://www.acmicpc.net/problem/" + i);
+			assertThat(result.getContent().get(i).getTitle()).isEqualTo("title" + i);
+			assertThat(result.getContent().get(i).getStartDate()).isEqualTo(
+				DateFormatUtil.formatDate(LocalDate.now().plusDays(1)));
+			assertThat(result.getContent().get(i).getEndDate()).isEqualTo(
 				DateFormatUtil.formatDate(LocalDate.now().plusDays(i + 1)));
 		}
 	}
@@ -612,9 +634,8 @@ class ProblemServiceTest {
 	@Test
 	@DisplayName("예정 문제 조회 성공 : 부방장")
 	void getQueuedProblemSuccess_2() throws NoSuchFieldException, IllegalAccessException {
-
 		//given
-		when(groupRepository.findById(10L)).thenReturn(Optional.ofNullable(group));
+		Pageable pageable = PageRequest.of(0, 10);
 		Field problemField = Problem.class.getDeclaredField("id");
 		problemField.setAccessible(true);
 
@@ -630,34 +651,39 @@ class ProblemServiceTest {
 			list.add(problem);
 			problemField.set(problem, (long)i);
 		}
+		Page<Problem> problemPage = new PageImpl<>(list.subList(0, 10), pageable, list.size());
 		when(groupRepository.findById(10L)).thenReturn(Optional.ofNullable(group));
 		when(groupMemberRepository.findByUserAndStudyGroup(user3, group)).thenReturn(Optional.of(groupMember3));
-		when(problemRepository.findAllByStudyGroupAndStartDateAfter(group, LocalDate.now())).thenReturn(list);
+		when(problemRepository.findAllByStudyGroupAndStartDateAfter(group, LocalDate.now(), pageable)).thenReturn(
+			problemPage);
 
-		//when
-		List<GetProblemResponse> result = problemService.getQueuedProblemList(user3, group.getId());
+		// when
+		Page<GetProblemResponse> result = problemService.getQueuedProblems(user3, group.getId(), pageable);
 
 		//then
-		assertThat(result.size()).isEqualTo(10);
+		assertThat(result.getSize()).isEqualTo(10);
 		for (int i = 0; i < 10; i++) {
-			assertThat(result.get(i).getProblemId()).isEqualTo(i);
-			assertThat(result.get(i).getLink()).isEqualTo("https://www.acmicpc.net/problem/" + i);
-			assertThat(result.get(i).getTitle()).isEqualTo("title" + i);
-			assertThat(result.get(i).getStartDate()).isEqualTo(DateFormatUtil.formatDate(LocalDate.now().plusDays(1)));
-			assertThat(result.get(i).getEndDate()).isEqualTo(
+			assertThat(result.getContent().get(i).getProblemId()).isEqualTo(i);
+			assertThat(result.getContent().get(i).getLink()).isEqualTo("https://www.acmicpc.net/problem/" + i);
+			assertThat(result.getContent().get(i).getTitle()).isEqualTo("title" + i);
+			assertThat(result.getContent().get(i).getStartDate()).isEqualTo(
+				DateFormatUtil.formatDate(LocalDate.now().plusDays(1)));
+			assertThat(result.getContent().get(i).getEndDate()).isEqualTo(
 				DateFormatUtil.formatDate(LocalDate.now().plusDays(i + 1)));
 		}
 	}
 
 	@Test
 	@DisplayName("예정 문제 조회 실패 : 그룹을 찾지 못함")
-	void getQueuedProblemListFailed_2() {
+	void getQueuedProblemsFailed_2() {
 		//given
+		Pageable pageable = PageRequest.of(0, 10);
+
 		when(groupRepository.findById(20L)).thenReturn(Optional.empty());
 
 		//whe
 		//then
-		assertThatThrownBy(() -> problemService.getQueuedProblemList(user2, 20L))
+		assertThatThrownBy(() -> problemService.getQueuedProblems(user2, 20L, pageable))
 			.isInstanceOf(StudyGroupValidationException.class)
 			.hasFieldOrPropertyWithValue("code", HttpStatus.NOT_FOUND.value())
 			.hasFieldOrPropertyWithValue("error", "존재하지 않는 그룹 입니다.");
@@ -665,14 +691,16 @@ class ProblemServiceTest {
 
 	@Test
 	@DisplayName("예정 문제 조회 실패 : 그룹원이 아님")
-	void getQueuedProblemListFailed_3() {
+	void getQueuedProblemsFailed_3() {
 		//given
+		Pageable pageable = PageRequest.of(0, 10);
+
 		when(groupRepository.findById(10L)).thenReturn(Optional.of(group));
 		when(groupMemberRepository.findByUserAndStudyGroup(user2, group)).thenReturn(Optional.empty());
 
 		//when
 		//then
-		assertThatThrownBy(() -> problemService.getQueuedProblemList(user2, 10L))
+		assertThatThrownBy(() -> problemService.getQueuedProblems(user2, 10L, pageable))
 			.isInstanceOf(StudyGroupValidationException.class)
 			.hasFieldOrPropertyWithValue("code", HttpStatus.FORBIDDEN.value())
 			.hasFieldOrPropertyWithValue("error", "참여하지 않은 그룹 입니다.");
@@ -680,14 +708,16 @@ class ProblemServiceTest {
 
 	@Test
 	@DisplayName("예정 문제 조회 실패 : 권한 없음")
-	void getQueuedProblemListFailed_4() {
+	void getQueuedProblemsFailed_4() {
 		//given
+		Pageable pageable = PageRequest.of(0, 10);
+
 		when(groupRepository.findById(10L)).thenReturn(Optional.of(group));
 		when(groupMemberRepository.findByUserAndStudyGroup(user4, group)).thenReturn(Optional.of(groupMember4));
 
 		//when
 		//then
-		assertThatThrownBy(() -> problemService.getQueuedProblemList(user4, 10L))
+		assertThatThrownBy(() -> problemService.getQueuedProblems(user4, 10L, pageable))
 			.isInstanceOf(ProblemValidationException.class)
 			.hasFieldOrPropertyWithValue("code", HttpStatus.FORBIDDEN.value())
 			.hasFieldOrPropertyWithValue("error", "예정 문제를 조회할 권한이 없습니다. : 그룹의 방장과 부방장만 볼 수 있습니다.");

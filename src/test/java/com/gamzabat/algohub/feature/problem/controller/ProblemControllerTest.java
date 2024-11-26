@@ -20,8 +20,11 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.context.annotation.Import;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.security.test.context.support.WithMockUser;
@@ -36,7 +39,6 @@ import com.gamzabat.algohub.feature.group.studygroup.repository.GroupMemberRepos
 import com.gamzabat.algohub.feature.group.studygroup.repository.StudyGroupRepository;
 import com.gamzabat.algohub.feature.problem.dto.CreateProblemRequest;
 import com.gamzabat.algohub.feature.problem.dto.EditProblemRequest;
-import com.gamzabat.algohub.feature.problem.dto.GetProblemListsResponse;
 import com.gamzabat.algohub.feature.problem.dto.GetProblemResponse;
 import com.gamzabat.algohub.feature.problem.exception.SolvedAcApiErrorException;
 import com.gamzabat.algohub.feature.problem.repository.ProblemRepository;
@@ -297,39 +299,34 @@ class ProblemControllerTest {
 	}
 
 	@Test
-	@DisplayName("문제 목록 조회 성공")
+	@DisplayName("진행 중인 문제 목록 조회 성공")
 	void getProblemList() throws Exception {
 		// given
-		Pageable pageable = PageRequest.of(0, 20);
-		GetProblemListsResponse response = new GetProblemListsResponse(
-			new ArrayList<GetProblemResponse>(),
-			new ArrayList<GetProblemResponse>(),
-			0,
-			20,
-			10
-		);
-		when(problemService.getProblemList(any(User.class), anyLong(), any(Pageable.class))).thenReturn(response);
+		Pageable pageable = PageRequest.of(0, 20, Sort.by("startDate").descending());
+		Page<GetProblemResponse> response = new PageImpl<>(new ArrayList<>());
+		when(problemService.getInProgressProblems(any(User.class), anyLong(), any(Pageable.class))).thenReturn(
+			response);
 		// when, then
-		mockMvc.perform(get("/api/groups/{groupId}/problems", groupId)
+		mockMvc.perform(get("/api/groups/{groupId}/problems/in-progress", groupId)
 				.header("Authorization", token))
 			.andExpect(status().isOk())
 			.andExpect(content().string(objectMapper.writeValueAsString(response)));
-		verify(problemService, times(1)).getProblemList(user, groupId, pageable);
+		verify(problemService, times(1)).getInProgressProblems(user, groupId, pageable);
 	}
 
 	@Test
 	@DisplayName("문제 목록 조회 실패 : 권한 없음")
 	void getProblemListFailed_1() throws Exception {
 		// given
-		Pageable pageable = PageRequest.of(0, 20);
-		when(problemService.getProblemList(any(User.class), anyLong(), any(Pageable.class))).thenThrow(
+		Pageable pageable = PageRequest.of(0, 20, Sort.by("startDate").descending());
+		when(problemService.getInProgressProblems(any(User.class), anyLong(), any(Pageable.class))).thenThrow(
 			new ProblemValidationException(HttpStatus.FORBIDDEN.value(), "문제를 조회할 권한이 없습니다."));
 		// when, then
-		mockMvc.perform(get("/api/groups/{groupId}/problems", groupId)
+		mockMvc.perform(get("/api/groups/{groupId}/problems/in-progress", groupId)
 				.header("Authorization", token))
 			.andExpect(status().isForbidden())
 			.andExpect(jsonPath("$.error").value("문제를 조회할 권한이 없습니다."));
-		verify(problemService, times(1)).getProblemList(user, groupId, pageable);
+		verify(problemService, times(1)).getInProgressProblems(user, groupId, pageable);
 	}
 
 	@Test

@@ -3,10 +3,8 @@ package com.gamzabat.algohub.feature.problem.service;
 import static com.gamzabat.algohub.constants.ApiConstants.*;
 
 import java.time.LocalDate;
-import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
-import java.util.stream.Collectors;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -35,7 +33,6 @@ import com.gamzabat.algohub.feature.notification.service.NotificationService;
 import com.gamzabat.algohub.feature.problem.domain.Problem;
 import com.gamzabat.algohub.feature.problem.dto.CreateProblemRequest;
 import com.gamzabat.algohub.feature.problem.dto.EditProblemRequest;
-import com.gamzabat.algohub.feature.problem.dto.GetProblemListsResponse;
 import com.gamzabat.algohub.feature.problem.dto.GetProblemResponse;
 import com.gamzabat.algohub.feature.problem.exception.NotBojLinkException;
 import com.gamzabat.algohub.feature.problem.exception.SolvedAcApiErrorException;
@@ -128,45 +125,48 @@ public class ProblemService {
 	}
 
 	@Transactional(readOnly = true)
-	public GetProblemListsResponse getProblemList(User user, Long groupId, Pageable pageable) {
+	public Page<GetProblemResponse> getInProgressProblems(User user, Long groupId, Pageable pageable) {
 		StudyGroup group = getGroup(groupId);
 		if (!groupMemberRepository.existsByUserAndStudyGroup(user, group)) {
 			throw new ProblemValidationException(HttpStatus.FORBIDDEN.value(), "문제를 조회할 권한이 없습니다.");
 		}
 
-		Page<Problem> problems = problemRepository.findAllByStudyGroup(group, pageable);
+		Page<Problem> problems = problemRepository.findAllByStudyGroupAndEndDateGreaterThanEqual(group, LocalDate.now(),
+			pageable);
 
-		List<GetProblemResponse> inProgressProblems = new ArrayList<>();
-		List<GetProblemResponse> expiredProblems = new ArrayList<>();
+		return problems.map(problem -> getGetProblemResponse(user, groupId, problem));
+	}
 
-		problems.forEach(problem -> {
-			boolean solved = solutionRepository.existsByUserAndProblemAndResult(user, problem,
-				BOJResultConstants.CORRECT);
-			Integer correctCount = solutionRepository.countDistinctUsersWithCorrectSolutionsByProblemId(problem.getId(),
-				BOJResultConstants.CORRECT);
-			Integer submitMemberCount = solutionRepository.countDistinctUsersByProblemId(problem.getId());
-			Integer groupMemberCount = groupMemberRepository.countMembersByStudyGroupId(groupId);
-			Integer accuracy = calculateAccuracy(submitMemberCount, correctCount);
-			Boolean inProgress = isInProgress(problem);
+	@Transactional(readOnly = true)
+	public Page<GetProblemResponse> getExpiredProblems(User user, Long groupId, Pageable pageable) {
+		StudyGroup group = getGroup(groupId);
+		if (!groupMemberRepository.existsByUserAndStudyGroup(user, group)) {
+			throw new ProblemValidationException(HttpStatus.FORBIDDEN.value(), "문제를 조회할 권한이 없습니다.");
+		}
 
-			GetProblemResponse response = new GetProblemResponse(
-				problem.getTitle(),
-				problem.getId(),
-				problem.getLink(),
-				problem.getStartDate(),
-				problem.getEndDate(),
-				problem.getLevel(),
-				solved, submitMemberCount, groupMemberCount, accuracy, inProgress);
+		Page<Problem> problems = problemRepository.findAllByStudyGroupAndEndDateBefore(group, LocalDate.now(),
+			pageable);
 
-			if (inProgress) {
-				inProgressProblems.add(response);
-			} else {
-				expiredProblems.add(response);
-			}
-		});
+		return problems.map(problem -> getGetProblemResponse(user, groupId, problem));
+	}
 
-		return new GetProblemListsResponse(inProgressProblems, expiredProblems, problems.getNumber(),
-			problems.getTotalPages(), problems.getTotalElements());
+	private GetProblemResponse getGetProblemResponse(User user, Long groupId, Problem problem) {
+		boolean solved = solutionRepository.existsByUserAndProblemAndResult(user, problem,
+			BOJResultConstants.CORRECT);
+		Integer correctCount = solutionRepository.countDistinctUsersWithCorrectSolutionsByProblemId(problem.getId(),
+			BOJResultConstants.CORRECT);
+		Integer submitMemberCount = solutionRepository.countDistinctUsersByProblemId(problem.getId());
+		Integer groupMemberCount = groupMemberRepository.countMembersByStudyGroupId(groupId);
+		Integer accuracy = calculateAccuracy(submitMemberCount, correctCount);
+
+		return new GetProblemResponse(
+			problem.getTitle(),
+			problem.getId(),
+			problem.getLink(),
+			problem.getStartDate(),
+			problem.getEndDate(),
+			problem.getLevel(),
+			solved, submitMemberCount, groupMemberCount, accuracy);
 	}
 
 	@Transactional
@@ -202,7 +202,6 @@ public class ProblemService {
 			Integer submitMemberCount = solutionRepository.countDistinctUsersByProblemId(problem.getId());
 			Integer groupMemberCount = groupMemberRepository.countMembersByStudyGroupId(groupId);
 			Integer accuracy = calculateAccuracy(submitMemberCount, correctCount);
-			Boolean inProgress = isInProgress(problem);
 
 			return new GetProblemResponse(
 				problem.getTitle(),
@@ -214,13 +213,12 @@ public class ProblemService {
 				solutionRepository.existsByUserAndProblemAndResult(user, problem, BOJResultConstants.CORRECT),
 				submitMemberCount,
 				groupMemberCount,
-				accuracy,
-				inProgress);
+				accuracy);
 		}).toList();
 	}
 
 	@Transactional(readOnly = true)
-	public List<GetProblemResponse> getQueuedProblemList(User user, Long groupId) {
+	public Page<GetProblemResponse> getQueuedProblems(User user, Long groupId, Pageable pageable) {
 		StudyGroup group = getGroup(groupId);
 		GroupMember groupMember = groupMemberRepository.findByUserAndStudyGroup(user, group)
 			.orElseThrow(
@@ -231,9 +229,9 @@ public class ProblemService {
 				"예정 문제를 조회할 권한이 없습니다. : 그룹의 방장과 부방장만 볼 수 있습니다.");
 		}
 
-		List<GetProblemResponse> responseList = problemRepository.findAllByStudyGroupAndStartDateAfter(group,
-				LocalDate.now())
-			.stream()
+		Page<Problem> problems = problemRepository.findAllByStudyGroupAndStartDateAfter(group,
+			LocalDate.now(), pageable);
+		return problems
 			.map(problem -> {
 				String title = problem.getTitle();
 				Long problemId = problem.getId();
@@ -245,15 +243,11 @@ public class ProblemService {
 				Integer submitMemberCount = 0;
 				Integer groupMemberCount = groupMemberRepository.countMembersByStudyGroupId(groupId);
 				Integer accuracy = 0;
-				Boolean inProgress = false;
 
 				return new GetProblemResponse(title, problemId, link, startDate, endDate, level, solved,
 					submitMemberCount,
-					groupMemberCount, accuracy, inProgress);
-			})
-			.collect(Collectors.toList());
-
-		return responseList;
+					groupMemberCount, accuracy);
+			});
 	}
 
 	@Transactional(readOnly = true)
@@ -271,7 +265,6 @@ public class ProblemService {
 		Integer groupMemberCount =
 			groupMemberRepository.countMembersByStudyGroupId(problem.getStudyGroup().getId());
 		Integer accuracy = calculateAccuracy(submitMemberCount, correctCount);
-		Boolean inProgress = isInProgress(problem);
 
 		GetProblemResponse response = new GetProblemResponse(
 			problem.getTitle(),
@@ -280,7 +273,7 @@ public class ProblemService {
 			problem.getStartDate(),
 			problem.getEndDate(),
 			problem.getLevel(),
-			solved, submitMemberCount, groupMemberCount, accuracy, inProgress);
+			solved, submitMemberCount, groupMemberCount, accuracy);
 		log.info("success to get problem. problemId:{}", problemId);
 		return response;
 	}
