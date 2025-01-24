@@ -87,7 +87,7 @@ tasks.named("processResources") {
     dependsOn("preScript")
 }
 
-tasks.named("bootRun") {
+tasks.named("bootRun"){
     dependsOn("preScript")
 }
 

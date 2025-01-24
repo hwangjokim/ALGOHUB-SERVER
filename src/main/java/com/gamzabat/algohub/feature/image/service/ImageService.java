@@ -69,7 +69,7 @@ public class ImageService {
 
 	public String parseImageName(String imageUrl) {
 		if (imageUrl.startsWith(bucketUrl))
-			return imageUrl.substring(bucketUrl.length());
+			return imageUrl.substring(imageUrl.lastIndexOf("/") + 1);
 		return null;
 	}
 
