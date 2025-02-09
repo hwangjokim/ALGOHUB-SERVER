@@ -72,8 +72,6 @@ public class NoticeService {
 		if (!groupMemberRepository.existsByUserAndStudyGroup(user, notice.getStudyGroup()))
 			throw new StudyGroupValidationException(HttpStatus.FORBIDDEN.value(), "참여하지 않은 스터디 그룹 입니다.");
 
-		markNoticeAsRead(user, notice);
-
 		log.info("success to get notice");
 		return GetNoticeResponse.builder()
 			.author(notice.getAuthor().getNickname())
@@ -81,9 +79,24 @@ public class NoticeService {
 			.title(notice.getTitle())
 			.content(notice.getContent())
 			.category(notice.getCategory())
-			.createAt(DateFormatUtil.formatDateTimeForNotice(notice.getCreatedAt()))
+			.createdAt(DateFormatUtil.formatDateTimeForNotice(notice.getCreatedAt()))
 			.isRead(true)
 			.build();
+	}
+
+	@Transactional
+	public void markNoticeAsRead(@AuthedUser User user, Long noticeId) {
+		Notice notice = noticeRepository.findById(noticeId)
+			.orElseThrow(() -> new NoticeValidationException("존재하지 않는 게시글입니다"));
+		if (!groupMemberRepository.existsByUserAndStudyGroup(user, notice.getStudyGroup()))
+			throw new StudyGroupValidationException(HttpStatus.FORBIDDEN.value(), "참여하지 않은 스터디 그룹 입니다.");
+
+		if (!noticeReadRepository.existsByNoticeAndUser(notice, user)) {
+			noticeReadRepository.save(
+				NoticeRead.builder().notice(notice).user(user).build()
+			);
+		}
+		log.info("success to read notice. userId: {}, noticeId: {}", user.getId(), notice.getId());
 	}
 
 	@Transactional(readOnly = true)
@@ -140,12 +153,4 @@ public class NoticeService {
 			.orElseThrow(() -> new StudyGroupValidationException(HttpStatus.BAD_REQUEST.value(), "존재하지 않는 스터디 그룹입니다"));
 	}
 
-	private void markNoticeAsRead(User user, Notice notice) {
-		if (!noticeReadRepository.existsByNoticeAndUser(notice, user)) {
-			noticeReadRepository.save(
-				NoticeRead.builder().notice(notice).user(user).build()
-			);
-		}
-		log.info("success to read notice. userId: {}, noticeId: {}", user.getId(), notice.getId());
-	}
 }

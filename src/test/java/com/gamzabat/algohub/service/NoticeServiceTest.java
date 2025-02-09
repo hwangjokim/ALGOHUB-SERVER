@@ -190,9 +190,8 @@ public class NoticeServiceTest {
 		assertThat(response.content()).isEqualTo("content");
 		assertThat(response.title()).isEqualTo("title");
 		assertThat(response.category()).isEqualTo("category");
-		assertThat(response.createAt()).isEqualTo(DateFormatUtil.formatDateTimeForNotice(notice.getCreatedAt()));
+		assertThat(response.createdAt()).isEqualTo(DateFormatUtil.formatDateTimeForNotice(notice.getCreatedAt()));
 		assertThat(response.noticeId()).isEqualTo(1000L);
-		verify(noticeReadRepository, times(1)).save(any(NoticeRead.class));
 	}
 
 	@Test
@@ -219,6 +218,50 @@ public class NoticeServiceTest {
 			.isInstanceOf(StudyGroupValidationException.class)
 			.hasFieldOrPropertyWithValue("code", HttpStatus.FORBIDDEN.value())
 			.hasFieldOrPropertyWithValue("error", "참여하지 않은 스터디 그룹 입니다.");
+	}
+
+	@Test
+	@DisplayName("공지 읽음 실패(존재하지 않는 공지)")
+	void saveNoticeReadFailed_1() {
+		//given
+		when(noticeRepository.findById(1001L)).thenReturn(Optional.empty());
+
+		//when, then
+		assertThatThrownBy(() -> noticeService.markNoticeAsRead(user, 1001L))
+			.isInstanceOf(NoticeValidationException.class)
+			.hasFieldOrPropertyWithValue("error", "존재하지 않는 게시글입니다");
+
+	}
+
+	@Test
+	@DisplayName("공지 읽음 실패(그룹에 참여하지 않은 유저)")
+	void saveNoticeReadFailed_2() {
+		//given
+		when(noticeRepository.findById(1000L)).thenReturn(Optional.ofNullable(notice));
+		when(groupMemberRepository.existsByUserAndStudyGroup(user4, notice.getStudyGroup())).thenReturn(false);
+		//when
+		assertThatThrownBy(() -> noticeService.markNoticeAsRead(user4, 1000L))
+			.isInstanceOf(StudyGroupValidationException.class)
+			.hasFieldOrPropertyWithValue("code", HttpStatus.FORBIDDEN.value())
+			.hasFieldOrPropertyWithValue("error", "참여하지 않은 스터디 그룹 입니다.");
+	}
+
+	@Test
+	@DisplayName("공지 읽음 성공")
+	void saveNoticeReadSuccess() {
+		// Given
+		when(noticeRepository.findById(1000L)).thenReturn(Optional.of(notice));
+		when(groupMemberRepository.existsByUserAndStudyGroup(user2, studyGroup)).thenReturn(true);
+		when(noticeReadRepository.existsByNoticeAndUser(notice, user2)).thenReturn(false);
+
+		// When
+		noticeService.markNoticeAsRead(user2, 1000L);
+
+		// Then
+		verify(noticeRepository, times(1)).findById(1000L);
+		verify(groupMemberRepository, times(1)).existsByUserAndStudyGroup(user2, studyGroup);
+		verify(noticeReadRepository, times(1)).existsByNoticeAndUser(notice, user2);
+		verify(noticeReadRepository, times(1)).save(any(NoticeRead.class));
 	}
 
 	@Test

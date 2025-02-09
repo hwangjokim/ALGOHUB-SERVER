@@ -57,6 +57,13 @@ public class NoticeController {
 		return ResponseEntity.ok().body(response);
 	}
 
+	@PostMapping("/notices/{noticeId}/read")
+	@Operation(summary = "공지 읽음 API")
+	public ResponseEntity<Void> markNoticeAsRead(@AuthedUser User user, @PathVariable Long noticeId) {
+		noticeService.markNoticeAsRead(user, noticeId);
+		return ResponseEntity.ok().build();
+	}
+
 	@GetMapping(value = "/groups/{groupId}/notices")
 	@Operation(summary = "공지 목록 조회 API")
 	public ResponseEntity<Page<GetNoticeResponse>> getNoticeList(@AuthedUser User user,
