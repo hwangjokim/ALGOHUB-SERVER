@@ -107,23 +107,48 @@ public class ProblemService {
 				"문제 수정 권한이 없습니다. 방장, 부방장일 경우에만 수정이 가능합니다.");
 		}
 
-		checkProblemPeriodRequest(request, problem);
+		checkProblemValidation(problem);
 
-		problem.editProblemInfo(request.startDate(), request.endDate());
+		if (request.startDate() != null) {
+			checkProblemStartDate(request, problem);
+			problem.editProblemStartDate(request.startDate());
+		}
+		if (request.endDate() != null) {
+			checkProblemEndDate(request, problem);
+			problem.editProblemEndDate(request.endDate());
+		}
+
 		log.info("success to edit problem deadline");
 	}
 
-	private void checkProblemPeriodRequest(EditProblemRequest request, Problem problem) {
-		if (!request.startDate().equals(problem.getStartDate()) && request.startDate().isBefore(LocalDate.now()))
-			throw new ProblemValidationException(HttpStatus.BAD_REQUEST.value(), "문제 시작 날짜는 오늘 이전의 날짜로 수정할 수 없습니다.");
-
-		if (!request.endDate().equals(problem.getEndDate()) && request.endDate().isBefore(LocalDate.now()))
-			throw new ProblemValidationException(HttpStatus.BAD_REQUEST.value(), "문제 마감 날짜는 오늘 이전의 날짜로 수정할 수 없습니다.");
-
-		if (!problem.getStartDate().isAfter(LocalDate.now()) && !request.startDate()
-			.isEqual(problem.getStartDate()))
+	private void checkProblemValidation(Problem problem) {
+		if (problem.getEndDate().isBefore(LocalDate.now())) {
 			throw new ProblemValidationException(HttpStatus.FORBIDDEN.value(),
-				"문제 시작 날짜 수정이 불가합니다. : 이미 진행 중인 문제입니다.");
+				"문제 수정이 불가합니다. : 이미 종료된 문제입니다.");
+		}
+		if (problem.getStartDate().isBefore(LocalDate.now()) || problem.getStartDate().equals(LocalDate.now())) {
+			throw new ProblemValidationException(HttpStatus.FORBIDDEN.value(),
+				"문제 수정이 불가합니다. : 이미 진행 중인 문제입니다.");
+		}
+
+	}
+
+	private void checkProblemEndDate(EditProblemRequest request, Problem problem) {
+		if (request.endDate().isBefore(problem.getStartDate()))
+			throw new ProblemValidationException(HttpStatus.BAD_REQUEST.value(),
+				"문제 마감 날짜는 시작 날짜 이전으로 수정할 수 없습니다.");
+		if (request.endDate().isBefore(LocalDate.now()))
+			throw new ProblemValidationException(HttpStatus.BAD_REQUEST.value(),
+				"문제 마감 날짜는 오늘 이전의 날짜로 수정할 수 없습니다.");
+	}
+
+	private void checkProblemStartDate(EditProblemRequest request, Problem problem) {
+		if (request.startDate().isBefore(LocalDate.now()))
+			throw new ProblemValidationException(HttpStatus.BAD_REQUEST.value(),
+				"문제 시작 날짜는 오늘 이전의 날짜로 수정할 수 없습니다.");
+		if (request.startDate().isAfter(problem.getEndDate()))
+			throw new ProblemValidationException(HttpStatus.BAD_REQUEST.value(),
+				"문제 시작 날짜는 마감 날짜 이후로 수정할 수 없습니다.");
 	}
 
 	@Transactional(readOnly = true)

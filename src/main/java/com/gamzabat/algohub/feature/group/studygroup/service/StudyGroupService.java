@@ -325,10 +325,12 @@ public class StudyGroupService {
 			throw new StudyGroupValidationException(HttpStatus.FORBIDDEN.value(), "그룹 정보 수정에 대한 권한이 없습니다.");
 
 		editGroupImage(groupImage, group, request.isDefaultImage());
-		group.editGroupDate(
-			request.startDate(),
-			request.endDate()
-		);
+		if (request.startDate() != null) {
+			group.editGroupStartDate(request.startDate());
+		}
+		if (request.endDate() != null) {
+			group.editGroupEndDate(request.endDate());
+		}
 		if (request.name() != null && !request.name().isEmpty())
 			group.editGroupName(request.name());
 		if (request.introduction() != null && !request.introduction().isEmpty())
@@ -529,7 +531,7 @@ public class StudyGroupService {
 
 		member.updateRole(RoleOfGroupMember.fromValue(request.role()));
 
-		if (RoleOfGroupMember.isOwner(member)) {
+		if (RoleOfGroupMember.isOwner(member) && request.role() != null) {
 			owner.updateRole(RoleOfGroupMember.PARTICIPANT);
 		}
 		log.info("success to update group member role");
@@ -553,7 +555,6 @@ public class StudyGroupService {
 
 		GroupMember member = groupMemberRepository.findByUserAndStudyGroup(user, group)
 			.orElseThrow(() -> new GroupMemberValidationException(HttpStatus.FORBIDDEN.value(), "참여하지 않은 그룹입니다."));
-
 		member.updateVisibility(request.isVisible());
 		log.info("success to update group visibility ( userId : {} )", user.getId());
 	}
