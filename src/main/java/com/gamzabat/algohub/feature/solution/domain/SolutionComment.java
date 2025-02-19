@@ -22,11 +22,16 @@ public class SolutionComment extends Comment {
 	@ManyToOne(fetch = FetchType.LAZY)
 	@JoinColumn(name = "solution_id")
 	private Solution solution;
+	private boolean isRead;
 
 	@Builder
-	public SolutionComment(Solution solution, User user, String content) {
+	public SolutionComment(Solution solution, User user, String content, boolean isRead) {
 		super(user, content);
 		this.solution = solution;
+		this.isRead = isRead;
 	}
 
+	public void markAsRead() {
+		this.isRead = true;
+	}
 }

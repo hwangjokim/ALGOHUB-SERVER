@@ -53,6 +53,7 @@ public class SolutionCommentService implements CommentService<CreateSolutionComm
 			.user(user)
 			.solution(solution)
 			.content(request.content())
+			.isRead(false)
 			.build());
 
 		sendCommentNotification(user, solution);
@@ -76,10 +77,15 @@ public class SolutionCommentService implements CommentService<CreateSolutionComm
 	}
 
 	@Override
-	@Transactional(readOnly = true)
+	@Transactional
 	public List<GetCommentResponse> getCommentList(User user, Long solutionId) {
 		Solution solution = checkSolutionValidation(user, solutionId);
 		List<SolutionComment> list = commentRepository.findAllBySolution(solution);
+		for (SolutionComment comment : list) {
+			if (!comment.isRead()) {
+				comment.markAsRead();
+			}
+		}
 		List<GetCommentResponse> result = list.stream().map(GetCommentResponse::toDTO)
 			.sorted((s1, s2) -> s2.createdAt().compareTo(s1.createdAt())).toList();
 		log.info("success to get solution comment list. solutionId: {}", solutionId);
@@ -126,5 +132,4 @@ public class SolutionCommentService implements CommentService<CreateSolutionComm
 
 		return solution;
 	}
-
 }
