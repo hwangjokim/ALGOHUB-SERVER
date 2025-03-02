@@ -19,6 +19,18 @@ jobs:
           echo "DOCKER_USERNAME=$(sed -n '1p' docker.txt)" >> $GITHUB_ENV
           echo "DOCKER_PASSWORD=$(sed -n '2p' docker.txt)" >> $GITHUB_ENV
 
+      - name: CREDENTIAL_NAME, CREDENTIAL_PW
+        run: |
+          echo "CREDENTIAL_NAME=${{ secrets.CREDENTIAL_NAME }}" >> $GITHUB_ENV 
+          echo "CREDENTIAL_PW=${{ secrets.CREDENTIAL_PW }}" >> $GITHUB_ENV 
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
+
+      - name: Build with Gradle
+        uses: gradle/gradle-build-action@v2.6.0
+        with:
+          arguments: bootJar --no-daemon
 
       - name: Log in to Docker registry
         uses: docker/login-action@v2
@@ -29,10 +41,7 @@ jobs:
 
       - name: Build backend docker image
         run: |
-          docker build \
-          --build-arg CREDENTIAL_NAME=${{ secrets.CREDENTIAL_NAME }} \
-          --build-arg CREDENTIAL_PW=${{ secrets.CREDENTIAL_PW }} \
-          -t docker.hwangdo.kr/algohub-server-rc:latest .
+          docker build -t docker.hwangdo.kr/algohub-server-rc:latest .
 
       - name: Push backend docker image
         run: |

@@ -1,21 +1,8 @@
-FROM eclipse-temurin:21-jdk-alpine AS build
-
-WORKDIR /app
-
-ARG CREDENTIAL_NAME
-ARG CREDENTIAL_PW
-
-ENV CREDENTIAL_NAME=${CREDENTIAL_NAME}
-ENV CREDENTIAL_PW=${CREDENTIAL_PW}
-
-COPY . .
-RUN ./gradlew bootJar
-
 FROM eclipse-temurin:21-jre-alpine
 
 WORKDIR /app
 
-COPY --from=build /app/build/libs/*.jar app.jar
+COPY build/libs/*.jar app.jar
 
 ENV SPRING_PROFILES_ACTIVE=rc
 
