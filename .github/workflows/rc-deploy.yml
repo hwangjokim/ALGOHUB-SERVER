@@ -29,8 +29,11 @@ jobs:
 
       - name: Build backend docker image
         run: |
-          docker build -t docker.hwangdo.kr/algohub--rc:latest .
+          docker build \
+          --build-arg CREDENTIAL_NAME=${{ secrets.CREDENTIAL_NAME }} \
+          --build-arg CREDENTIAL_PW=${{ secrets.CREDENTIAL_PW }} \
+          -t docker.hwangdo.kr/algohub-server-rc:latest .
 
       - name: Push backend docker image
         run: |
-          docker push docker.hwangdo.kr/algohub-backend-rc:latest
+          docker push docker.hwangdo.kr/algohub-server-rc:latest
