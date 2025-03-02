@@ -1,0 +1,36 @@
+name: rc-deploy
+
+on:
+  push:
+    branches:
+      - develop
+
+jobs:
+  deploy:
+    runs-on: ubuntu-22.04-arm
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Setup environment variable from WebDAV
+        run: |
+          curl -u ${{ secrets.CREDENTIAL_NAME }}:${{ secrets.CREDENTIAL_PW }} -X GET https://webdav.hwangdo.kr/docker-registry/rc-deploy.txt -o docker.txt
+          echo "DOCKER_USERNAME=$(sed -n '1p' docker.txt)" >> $GITHUB_ENV
+          echo "DOCKER_PASSWORD=$(sed -n '2p' docker.txt)" >> $GITHUB_ENV
+
+
+      - name: Log in to Docker registry
+        uses: docker/login-action@v2
+        with:
+          registry: docker.hwangdo.kr
+          username: ${{ env.DOCKER_USERNAME }}
+          password: ${{ env.DOCKER_PASSWORD }}
+
+      - name: Build backend docker image
+        run: |
+          docker build -t docker.hwangdo.kr/algohub--rc:latest .
+
+      - name: Push backend docker image
+        run: |
+          docker push docker.hwangdo.kr/algohub-backend-rc:latest

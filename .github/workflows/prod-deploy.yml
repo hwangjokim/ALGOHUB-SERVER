@@ -3,7 +3,7 @@ name: ALGOHUB Deploy
 on:
   push:
     branches:
-      - develop
+      - deploy
 
 permissions:
   contents: read
