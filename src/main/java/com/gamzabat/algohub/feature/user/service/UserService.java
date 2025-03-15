@@ -2,8 +2,6 @@ package com.gamzabat.algohub.feature.user.service;
 
 import static com.gamzabat.algohub.constants.ApiConstants.*;
 
-import java.net.URLDecoder;
-import java.nio.charset.StandardCharsets;
 import java.security.SecureRandom;
 import java.time.Duration;
 import java.time.LocalDateTime;
@@ -39,6 +37,7 @@ import com.gamzabat.algohub.feature.user.domain.ResetPassword;
 import com.gamzabat.algohub.feature.user.domain.User;
 import com.gamzabat.algohub.feature.user.dto.DeleteUserRequest;
 import com.gamzabat.algohub.feature.user.dto.EditUserPasswordRequest;
+import com.gamzabat.algohub.feature.user.dto.RegisterBjNickNameRequest;
 import com.gamzabat.algohub.feature.user.dto.RegisterRequest;
 import com.gamzabat.algohub.feature.user.dto.ResetPasswordRequest;
 import com.gamzabat.algohub.feature.user.dto.SignInRequest;
@@ -78,7 +77,6 @@ public class UserService {
 		checkEmailDuplication(request.email());
 		checkNickname(request.nickname());
 		checkEmailForm(request.email());
-		checkBjNickname(request.bjNickname());
 		checkPasswordForm(request.password());
 
 		String encodedPassword = passwordEncoder.encode(request.password());
@@ -87,7 +85,6 @@ public class UserService {
 			.email(request.email())
 			.password(encodedPassword)
 			.nickname(request.nickname())
-			.bjNickname(request.bjNickname())
 			.role(Role.USER)
 			.build());
 
@@ -164,15 +161,6 @@ public class UserService {
 		}
 	}
 
-	private boolean isEqualToProfileImage(User user, MultipartFile profileImage) {
-		String prefix = imageService.createImagePrefix(user.getId(), user.getEmail());
-		String inputImageUrl = imageService.getImageName(ImageType.USER, prefix,
-			profileImage);
-		String userProfileImageUrl = URLDecoder.decode(imageService.parseImageName(user.getProfileImage()),
-			StandardCharsets.UTF_8);
-		return inputImageUrl.equals(userProfileImageUrl);
-	}
-
 	@Transactional
 	public void deleteUser(User user, DeleteUserRequest deleteUserRequest) {
 		if (!passwordEncoder.matches(deleteUserRequest.password(), user.getPassword())) {
@@ -201,28 +189,18 @@ public class UserService {
 		userRepository.save(user);
 	}
 
+	@Transactional
+	public void registerBjNickname(User user, RegisterBjNickNameRequest request) {
+		validateBjNickname(request.bjNickName());
+		user.editBjNickname(request.bjNickName());
+		userRepository.save(user);
+		log.info("success to register baekjoon-nickname user_id = {}", user.getId());
+	}
+
 	@Transactional(readOnly = true)
 	public void checkBjNickname(String bjNickname) {
-		String bjUserUrl = BOJ_USER_PROFILE_URL + bjNickname;
-
-		HttpHeaders headers = new HttpHeaders();
-		headers.set("User-Agent",
-			"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.0.0 Safari/537.36");
-		HttpEntity<String> entity = new HttpEntity<>(headers);
-
-		try {
-			restTemplate.exchange(bjUserUrl, HttpMethod.GET, entity, String.class);
-			// TODO : 백준 본인 인증 관련 사항 확정 후 로직 수정
-			// if (userRepository.existsByBjNickname(bjNickname))
-			// 	throw new CheckBjNicknameValidationException(HttpStatus.CONFLICT.value(), "이미 가입된 백준 닉네임 입니다.");
-		} catch (HttpClientErrorException e) {
-			if (e.getStatusCode() == HttpStatus.NOT_FOUND)
-				throw new CheckBjNicknameValidationException(HttpStatus.NOT_FOUND.value(), "백준 닉네임이 유효하지 않습니다.");
-		} catch (HttpServerErrorException e) {
-			log.error("BOJ server error occurred : " + e.getMessage());
-			throw new BOJServerErrorException("현재 백준 서버 오류가 발생했습니다. 잠시 후 다시 시도해주세요.");
-		}
-		log.info("success to check baekjoon nickname validity");
+		validateBjNickname(bjNickname);
+		log.info("success to check baekjoon nickname validity nickname = {}", bjNickname);
 	}
 
 	@Transactional(readOnly = true)
@@ -350,6 +328,30 @@ public class UserService {
 		byte[] bytes = new byte[TOKEN_LENGTH];
 		new SecureRandom().nextBytes(bytes);
 		return Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
+	}
+
+	private void validateBjNickname(String bjNickname) {
+
+		String bjUserUrl = BOJ_USER_PROFILE_URL + bjNickname;
+
+		HttpHeaders headers = new HttpHeaders();
+		headers.set("User-Agent",
+			"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.0.0 Safari/537.36");
+		HttpEntity<String> entity = new HttpEntity<>(headers);
+
+		try {
+			restTemplate.exchange(bjUserUrl, HttpMethod.GET, entity, String.class);
+			// TODO : 백준 본인 인증 관련 사항 확정 후 로직 수정
+			// if (userRepository.existsByBjNickname(bjNickname))
+			// 	throw new CheckBjNicknameValidationException(HttpStatus.CONFLICT.value(), "이미 가입된 백준 닉네임 입니다.");
+		} catch (HttpClientErrorException e) {
+			if (e.getStatusCode() == HttpStatus.NOT_FOUND)
+				throw new CheckBjNicknameValidationException(HttpStatus.NOT_FOUND.value(), "백준 닉네임이 유효하지 않습니다.");
+		} catch (HttpServerErrorException e) {
+			log.error("BOJ server error occurred : " + e.getMessage());
+			throw new BOJServerErrorException("현재 백준 서버 오류가 발생했습니다. 잠시 후 다시 시도해주세요.");
+		}
+
 	}
 
 }
