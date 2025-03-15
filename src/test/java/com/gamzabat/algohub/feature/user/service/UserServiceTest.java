@@ -38,6 +38,7 @@ import org.springframework.web.client.RestTemplate;
 import com.gamzabat.algohub.common.jwt.TokenProvider;
 import com.gamzabat.algohub.common.jwt.dto.JwtDTO;
 import com.gamzabat.algohub.common.redis.RedisService;
+import com.gamzabat.algohub.enums.EmailType;
 import com.gamzabat.algohub.enums.ImageType;
 import com.gamzabat.algohub.enums.Role;
 import com.gamzabat.algohub.exception.UserValidationException;
@@ -58,6 +59,7 @@ import com.gamzabat.algohub.feature.user.exception.BOJServerErrorException;
 import com.gamzabat.algohub.feature.user.exception.CheckBjNicknameValidationException;
 import com.gamzabat.algohub.feature.user.exception.CheckNicknameValidationException;
 import com.gamzabat.algohub.feature.user.exception.CheckPasswordFormException;
+import com.gamzabat.algohub.feature.user.exception.InvalidEmailException;
 import com.gamzabat.algohub.feature.user.exception.ResetPasswordValidationError;
 import com.gamzabat.algohub.feature.user.exception.UncorrectedPasswordException;
 import com.gamzabat.algohub.feature.user.repository.ResetPasswordRepository;
@@ -99,6 +101,8 @@ class UserServiceTest {
 	private final String imageUrl = "1_test@email.com_image.jpg";
 	private final String bjNickname = "bjNickname";
 	private final String RESET_PASSWORD_TOKEN = "RESET_PASSWORD_TOKEN";
+	private final String EMAIL_VERIFICATION_TOKEN = "TOKEN123456";
+
 	private User user;
 	private ResetPassword resetPassword;
 
@@ -131,15 +135,16 @@ class UserServiceTest {
 	void register() {
 		// given
 		String prefix = "1_test@email.com";
-		RegisterRequest request = new RegisterRequest(email, password, nickname);
+		RegisterRequest request = new RegisterRequest(password, nickname);
 		MockMultipartFile profileImage = new MockMultipartFile("image", "image.jpg", "image/jpeg", "test".getBytes());
+		when(redisService.getValues(EMAIL_VERIFICATION_TOKEN)).thenReturn(email);
 		when(userRepository.save(any(User.class))).thenReturn(user);
 		when(imageService.createImagePrefix(user.getId(), user.getEmail())).thenReturn(prefix);
 		when(imageService.saveImage(ImageType.USER, prefix,
 			profileImage)).thenReturn(imageUrl);
 		when(passwordEncoder.encode(password)).thenReturn(encoded);
 		// when
-		userService.register(request, profileImage);
+		userService.register(request, profileImage, EMAIL_VERIFICATION_TOKEN);
 		// then
 		verify(userRepository, times(1)).save(userCaptor.capture());
 		User user = userCaptor.getValue();
@@ -148,19 +153,6 @@ class UserServiceTest {
 		assertThat(user.getDescription()).isEqualTo("");
 		verify(imageService, times(1)).createImagePrefix(anyLong(), anyString());
 		verify(imageService, times(1)).saveImage(ImageType.USER, prefix, profileImage);
-	}
-
-	@Test
-	@DisplayName("회원가입 실패 : 이미 가입 된 이메일")
-	void registerFailed_1() {
-		// given
-		RegisterRequest request = new RegisterRequest(email, password, nickname);
-		MockMultipartFile profileImage = new MockMultipartFile("image", "image.jpg", "image/jpeg", "test".getBytes());
-		when(userRepository.existsByEmail(email)).thenReturn(true);
-		// when, then
-		assertThatThrownBy(() -> userService.register(request, profileImage))
-			.isInstanceOf(UserValidationException.class)
-			.hasFieldOrPropertyWithValue("errors", "이미 사용 중인 이메일 입니다.");
 	}
 
 	@Test
@@ -527,7 +519,7 @@ class UserServiceTest {
 	void resetPasswordEmail_suceess() {
 		//give
 		when(userRepository.findByEmail(email)).thenReturn(Optional.of(user));
-		when(emailService.sendResetPasswordMail(eq(email), anyString())).thenReturn(
+		when(emailService.sendVerificationMail(eq(email), anyString(), eq(EmailType.RESET_PASSWORD))).thenReturn(
 			CompletableFuture.completedFuture(null));
 
 		//when
@@ -538,7 +530,7 @@ class UserServiceTest {
 		ResetPassword resetPassword = passwordCaptor.getValue();
 		assertThat(resetPassword.getUser()).isEqualTo(user);
 
-		verify(emailService, times(1)).sendResetPasswordMail(anyString(), anyString());
+		verify(emailService, times(1)).sendVerificationMail(anyString(), anyString(), eq(EmailType.RESET_PASSWORD));
 
 	}
 
@@ -626,6 +618,34 @@ class UserServiceTest {
 		verify(passwordEncoder, times(1)).encode(password);
 		assertThat(resetPassword.getDone()).isTrue();
 		assertThat(user.getPassword()).isEqualTo(passwordEncoder.encode(password));
+	}
+
+	@Test
+	@DisplayName("이메일 검증 실패 : 인증번호가 없거나 만료된 경우")
+	void checkEmailVerification_failed() {
+		//given
+		when(redisService.checkExistsValue(EMAIL_VERIFICATION_TOKEN)).thenReturn(false);
+
+		//when, then
+		assertThatThrownBy(() -> userService.checkEmailVerification(EMAIL_VERIFICATION_TOKEN))
+			.isInstanceOf(InvalidEmailException.class)
+			.hasFieldOrPropertyWithValue("errors", "토큰이 유효하지 않습니다.");
+	}
+
+	@Test
+	@DisplayName("이메일 검증 성공")
+	void checkEmailVerification_success() {
+		//given
+		when(redisService.checkExistsValue(EMAIL_VERIFICATION_TOKEN)).thenReturn(true);
+		when(redisService.getValues(EMAIL_VERIFICATION_TOKEN)).thenReturn(email);
+		//when
+		userService.checkEmailVerification(EMAIL_VERIFICATION_TOKEN);
+
+		//then
+		verify(redisService).getValues(EMAIL_VERIFICATION_TOKEN);
+		verify(redisService).setValues(EMAIL_VERIFICATION_TOKEN, email, Duration.ofMinutes(30));
+		verify(redisService).deleteValues(EMAIL_VERIFICATION_TOKEN);
+		verify(redisService).checkExistsValue(EMAIL_VERIFICATION_TOKEN);
 	}
 
 }

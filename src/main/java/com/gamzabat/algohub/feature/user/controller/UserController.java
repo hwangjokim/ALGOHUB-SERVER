@@ -25,10 +25,12 @@ import com.gamzabat.algohub.feature.user.dto.EditUserPasswordRequest;
 import com.gamzabat.algohub.feature.user.dto.RegisterBjNickNameRequest;
 import com.gamzabat.algohub.feature.user.dto.RegisterRequest;
 import com.gamzabat.algohub.feature.user.dto.ResetPasswordRequest;
+import com.gamzabat.algohub.feature.user.dto.SendVerificationCodeRequest;
 import com.gamzabat.algohub.feature.user.dto.SignInRequest;
 import com.gamzabat.algohub.feature.user.dto.TokenResponse;
 import com.gamzabat.algohub.feature.user.dto.UpdateUserRequest;
 import com.gamzabat.algohub.feature.user.dto.UserInfoResponse;
+import com.gamzabat.algohub.feature.user.service.EmailService;
 import com.gamzabat.algohub.feature.user.service.UserService;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -43,14 +45,15 @@ import lombok.RequiredArgsConstructor;
 @Tag(name = "회원 API", description = "회원 관련된 API 명세서")
 public class UserController {
 	private final UserService userService;
+	private final EmailService emailService;
 
 	@PostMapping(value = "/auth/sign-up", consumes = MediaType.MULTIPART_FORM_DATA_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
 	@Operation(summary = "회원 가입 API")
 	public ResponseEntity<Void> register(@Valid @RequestPart RegisterRequest request, Errors errors,
-		@RequestPart(required = false) MultipartFile profileImage) {
+		@RequestPart(required = false) MultipartFile profileImage, @RequestParam String token) {
 		if (errors.hasErrors())
 			throw new RequestException("올바르지 않은 요청입니다.", errors);
-		userService.register(request, profileImage);
+		userService.register(request, profileImage, token);
 		return ResponseEntity.ok().build();
 	}
 
@@ -73,10 +76,30 @@ public class UserController {
 		return ResponseEntity.ok().body(response);
 	}
 
+
+	@PostMapping("/auth/verify/send")
+	@Operation(summary = "이메일 인증 토큰 전송")
+	public ResponseEntity<Void> sendVerificationCode(@Valid @RequestBody SendVerificationCodeRequest request,
+		Errors errors) {
+		if (errors.hasErrors())
+			throw new RequestException("올바르지 않은 요청입니다.", errors);
+
+		userService.sendEmailVerificationMail(request.email());
+		return ResponseEntity.ok().build();
+	}
+
+	@GetMapping("/auth/verify")
+	@Operation(summary = "이메일 인증 토큰 검증")
+	public ResponseEntity<Void> verifyEmail(@RequestParam String token) {
+		userService.checkEmailVerification(token);
+    return ResponseEntity.ok().build();
+	}
+  
 	@GetMapping("/users/check-baekjoon-nickname")
 	@Operation(summary = "백준 닉네임 유효성 검증 API", description = "회원가입 진행 시, 백준 닉네임이 유효한지 검증하는 API")
 	public ResponseEntity<Void> checkBjNickname(@RequestParam String bjNickname) {
 		userService.checkBjNickname(bjNickname);
+
 		return ResponseEntity.ok().build();
 	}
 

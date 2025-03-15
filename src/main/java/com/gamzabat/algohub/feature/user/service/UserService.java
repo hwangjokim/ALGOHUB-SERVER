@@ -28,6 +28,7 @@ import com.gamzabat.algohub.common.jwt.TokenProvider;
 import com.gamzabat.algohub.common.jwt.dto.JwtDTO;
 import com.gamzabat.algohub.common.jwt.dto.ReissueTokenRequest;
 import com.gamzabat.algohub.common.redis.RedisService;
+import com.gamzabat.algohub.enums.EmailType;
 import com.gamzabat.algohub.enums.ImageType;
 import com.gamzabat.algohub.enums.Role;
 import com.gamzabat.algohub.exception.UserValidationException;
@@ -49,6 +50,7 @@ import com.gamzabat.algohub.feature.user.exception.CheckBjNicknameValidationExce
 import com.gamzabat.algohub.feature.user.exception.CheckEmailFormException;
 import com.gamzabat.algohub.feature.user.exception.CheckNicknameValidationException;
 import com.gamzabat.algohub.feature.user.exception.CheckPasswordFormException;
+import com.gamzabat.algohub.feature.user.exception.InvalidEmailException;
 import com.gamzabat.algohub.feature.user.exception.ResetPasswordValidationError;
 import com.gamzabat.algohub.feature.user.exception.UncorrectedPasswordException;
 import com.gamzabat.algohub.feature.user.repository.ResetPasswordRepository;
@@ -73,16 +75,17 @@ public class UserService {
 	private final EmailService emailService;
 
 	@Transactional
-	public void register(RegisterRequest request, MultipartFile profileImage) {
-		checkEmailDuplication(request.email());
+	public void register(RegisterRequest request, MultipartFile profileImage, String token) {
+
+		String email = redisService.getValues(token);
 		checkNickname(request.nickname());
-		checkEmailForm(request.email());
+		checkEmailForm(email);
 		checkPasswordForm(request.password());
 
 		String encodedPassword = passwordEncoder.encode(request.password());
 
 		User user = userRepository.save(User.builder()
-			.email(request.email())
+			.email(email)
 			.password(encodedPassword)
 			.nickname(request.nickname())
 			.role(Role.USER)
@@ -261,9 +264,23 @@ public class UserService {
 		resetPasswordRepository.save(resetPassword);
 		log.info("success to create reset password token. Token: {}", resetPassword.getToken());
 
-		emailService.sendResetPasswordMail(user.getEmail(), token).thenAccept(unused ->
+		emailService.sendVerificationMail(user.getEmail(), token, EmailType.RESET_PASSWORD).thenAccept(unused ->
 			log.info("success to send reset password mail.")
 		);
+	}
+
+	public void sendEmailVerificationMail(String email) {
+		checkEmailDuplication(email);
+		String token = UserService.generateSecureToken();
+		log.info("success to create email verification token. Token: {}", token);
+		redisService.setValues(token, email, Duration.ofMinutes(3));
+
+		emailService.sendVerificationMail(email, token, EmailType.EMAIL_VALIDATION).thenAccept(unused ->
+			log.info("success to send email validation mail.")
+		).exceptionally(e -> {
+			redisService.deleteValues(token);
+			return null;
+		});
 	}
 
 	@Transactional
@@ -330,6 +347,19 @@ public class UserService {
 		return Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
 	}
 
+	public void checkEmailVerification(String token) {
+		boolean isTokenExist = redisService.checkExistsValue(token);
+
+		if (!isTokenExist) {
+			throw new InvalidEmailException("토큰이 유효하지 않습니다.");
+		}
+
+		String email = redisService.getValues(token);
+
+		redisService.deleteValues(token);
+		redisService.setValues(token, email, Duration.ofMinutes(30));
+	}
+  
 	private void validateBjNickname(String bjNickname) {
 
 		String bjUserUrl = BOJ_USER_PROFILE_URL + bjNickname;
@@ -353,5 +383,4 @@ public class UserService {
 		}
 
 	}
-
 }
